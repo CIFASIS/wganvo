@@ -3,7 +3,7 @@ import os
 import re
 import matplotlib.pyplot as plt
 from datetime import datetime as dt
-from image import load_image
+from image import load_image, crop_image, scale_image, save_image
 from camera_model import CameraModel
 
 parser = argparse.ArgumentParser(description='Play back images from a given directory')
@@ -45,6 +45,11 @@ if not os.path.isfile(filename):
 current_chunk = chunk
 
 img = load_image(filename, model)
+save_image(img, 'undistorted.jpg')
+img = crop_image(img, 880, 660)
+save_image(img, 'cropped.jpg')
+img = scale_image(img, 128, 96)
+save_image(img, 'scaled.jpg')
 plt.imshow(img)
 plt.xlabel(datetime)
 plt.xticks([])

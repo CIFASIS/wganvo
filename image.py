@@ -13,6 +13,7 @@
 ###############################################################################
 
 import re
+from scipy.misc import imresize, imsave
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 
@@ -47,3 +48,17 @@ def load_image(image_path, model=None):
 
     return img
 
+import numpy as np
+
+
+def crop_image(num_array, cropx, cropy):
+    y,x,rgb = num_array.shape
+    startx = x // 2 - (cropx // 2)
+    starty = y // 2 - (cropy // 2)
+    return num_array[starty:starty + cropy, startx:startx+cropx]    
+
+def scale_image(num_array, sizex, sizey):
+    return imresize(num_array, (sizey,sizex))
+
+def save_image(num_array, path):
+    imsave(path, num_array)
