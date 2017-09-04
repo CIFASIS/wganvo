@@ -10,7 +10,8 @@ parser = argparse.ArgumentParser(description='Play back images from a given dire
 
 parser.add_argument('dir', type=str, help='Directory containing images.')
 parser.add_argument('--models_dir', type=str, default=None, help='(optional) Directory containing camera model. If supplied, images will be undistorted before display')
-parser.add_argument('--scale', type=float, default=1.0, help='(optional) factor by which to scale images before display')
+parser.add_argument('--crop', nargs = 2, default=None, type=int, metavar=('WIDTH', 'HEIGHT'), help='(optional) If supplied, images will be cropped to WIDTH x HEIGHT')
+parser.add_argument('--scale', nargs = 2, default=None, type=int, metavar=('WIDTH', 'HEIGHT'), help='(optional) If supplied, images will be scaled to WIDTH x HEIGHT')
 parser.add_argument('image_name', type=str, help='Image name.')
 args = parser.parse_args()
 
@@ -30,7 +31,9 @@ current_chunk = 0
 timestamps_file = open(timestamps_path)
 
 im = args.image_name
-
+if args.scale:
+    scalex = args.scale[0]
+    scaley = args.scale[1]
 tokens = im, 1
 datetime = dt.utcfromtimestamp(int(tokens[0])/1000000)
 chunk = int(tokens[1])
@@ -45,14 +48,10 @@ if not os.path.isfile(filename):
 current_chunk = chunk
 
 img = load_image(filename, model)
-save_image(img, 'undistorted.jpg')
-img = crop_image(img, 880, 660)
-save_image(img, 'cropped.jpg')
-img = scale_image(img, 128, 96)
-save_image(img, 'scaled.jpg')
-plt.imshow(img)
-plt.xlabel(datetime)
-plt.xticks([])
-plt.yticks([])
-plt.pause(100.20)
+if args.crop:
+    img = crop_image(img, args.crop[0], args.crop[1])
+if args.scale:
+    img = scale_image(img, scalex, scaley)
+save_image(img, 'scaled_img.jpg')
+
 

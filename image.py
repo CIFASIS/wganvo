@@ -14,7 +14,7 @@
 
 import re
 import numpy as np
-from scipy.misc import imresize, imsave
+from scipy.misc import imresize, imsave, imread
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 
@@ -41,14 +41,19 @@ def load_image(image_path, model=None):
         pattern = BAYER_STEREO
     else:
         pattern = BAYER_MONO
-
-    img = Image.open(image_path)    
-    img = demosaic(img, pattern)    
-    if model:
-        img = model.undistort(img)
     
-    img = rgb_2_grey(img)
+    if model:    
+        img = demosaic(Image.open(image_path), pattern)    
+        img = model.undistort(img)
+        img = rgb_2_grey(img)
+    else:
+        img = non_demosaic_load(image_path)
+    assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
     return img
+
+def non_demosaic_load(image_path):
+    return imread(image_path)
+
 
 def crop_image(num_array, cropx, cropy):
     y = num_array.shape[0]
