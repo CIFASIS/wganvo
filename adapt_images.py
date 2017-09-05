@@ -12,7 +12,7 @@ parser.add_argument('dir', type=str, help='Directory containing images.')
 parser.add_argument('--models_dir', type=str, default=None, help='(optional) Directory containing camera model. If supplied, images will be undistorted before display')
 parser.add_argument('--crop', nargs = 2, default=None, type=int, metavar=('WIDTH', 'HEIGHT'), help='(optional) If supplied, images will be cropped to WIDTH x HEIGHT')
 parser.add_argument('--scale', nargs = 2, default=None, type=int, metavar=('WIDTH', 'HEIGHT'), help='(optional) If supplied, images will be scaled to WIDTH x HEIGHT')
-parser.add_argument('image_name', type=str, help='Image name.')
+#parser.add_argument('image_name', type=str, help='Image name.')
 args = parser.parse_args()
 
 camera = re.search('(stereo|mono_(left|right|rear))', args.dir).group(0)
@@ -30,28 +30,31 @@ if args.models_dir:
 current_chunk = 0
 timestamps_file = open(timestamps_path)
 
-im = args.image_name
+#im = args.image_name
 if args.scale:
     scalex = args.scale[0]
     scaley = args.scale[1]
-tokens = im, 1
-datetime = dt.utcfromtimestamp(int(tokens[0])/1000000)
-chunk = int(tokens[1])
+#dataset = np.array([])
+for line in timestamps_file:
+    tokens = line.split()
+    #datetime = dt.utcfromtimestamp(int(tokens[0])/1000000)
+    chunk = int(tokens[1])
+    image_name = tokens[0]
+    filename = os.path.join(args.dir, image_name + '.png')
+    if not os.path.isfile(filename):
+        if chunk != current_chunk:
+            print("Chunk " + str(chunk) + " not found")
+            current_chunk = chunk
+        raise IOError("Rt exc")
 
-filename = os.path.join(args.dir, tokens[0] + '.png')
-if not os.path.isfile(filename):
-    if chunk != current_chunk:
-        print("Chunk " + str(chunk) + " not found")
-        current_chunk = chunk
-    raise IOError("Rt exc")
+    current_chunk = chunk
 
-current_chunk = chunk
-
-img = load_image(filename, model)
-if args.crop:
-    img = crop_image(img, args.crop[0], args.crop[1])
-if args.scale:
-    img = scale_image(img, scalex, scaley)
-save_image(img, 'scaled_img.jpg')
+    img = load_image(filename, model)
+    if args.crop:
+        img = crop_image(img, args.crop[0], args.crop[1])
+    if args.scale:
+        img = scale_image(img, scalex, scaley)        
+    #save_image(img, 'scaled_img.jpg')
+    print "loading..." + image_name
 
 
