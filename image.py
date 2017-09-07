@@ -68,5 +68,8 @@ def scale_image(num_array, sizex, sizey):
 def save_image(num_array, path):
     imsave(path, num_array)
 
+def savez_compressed(path, array):
+    np.savez_compressed(path, array)
+
 def rgb_2_grey(img):
     return np.dot(img[...,:3],[0.299, 0.587, 0.114]).astype(img.dtype)

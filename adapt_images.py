@@ -1,9 +1,9 @@
 import argparse
 import os
 import re
-import matplotlib.pyplot as plt
-from datetime import datetime as dt
-from image import load_image, crop_image, scale_image, save_image
+import numpy as np
+#from datetime import datetime as dt
+from image import load_image, crop_image, scale_image, savez_compressed
 from camera_model import CameraModel
 
 parser = argparse.ArgumentParser(description='Play back images from a given directory')
@@ -35,6 +35,7 @@ if args.scale:
     scalex = args.scale[0]
     scaley = args.scale[1]
 #dataset = np.array([])
+result_list = []
 for line in timestamps_file:
     tokens = line.split()
     #datetime = dt.utcfromtimestamp(int(tokens[0])/1000000)
@@ -45,7 +46,7 @@ for line in timestamps_file:
         if chunk != current_chunk:
             print("Chunk " + str(chunk) + " not found")
             current_chunk = chunk
-        raise IOError("Rt exc")
+        continue
 
     current_chunk = chunk
 
@@ -54,7 +55,11 @@ for line in timestamps_file:
         img = crop_image(img, args.crop[0], args.crop[1])
     if args.scale:
         img = scale_image(img, scalex, scaley)        
-    #save_image(img, 'scaled_img.jpg')
-    print "loading..." + image_name
+    result_list.append(list(img))
+
+path = os.path.normpath(args.dir)
+folders = path.split(os.sep)
+result = np.array(result_list)
+savez_compressed(folders[-3], result)
 
 
