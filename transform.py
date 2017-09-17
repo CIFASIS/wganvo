@@ -18,6 +18,13 @@ from math import sin, cos, atan2, sqrt
 
 MATRIX_MATCH_TOLERANCE = 1e-4
 
+def build_intrinsic_matrix(focal_length, principal_point):
+    intrinsic_matrix = matlib.identity(3)
+    intrinsic_matrix[0:2, 2] = np.matrix(principal_point).transpose()
+    intrinsic_matrix[0,0] = focal_length[0]
+    intrinsic_matrix[1,1] = focal_length[1]
+    return intrinsic_matrix
+    
 
 def build_se3_transform(xyzrpy):
     """Creates an SE3 transform from translation and Euler angles.
