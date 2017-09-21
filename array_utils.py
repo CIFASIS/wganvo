@@ -4,6 +4,9 @@
 
 import numpy as np
 
+def save(name, array):
+    np.savetxt(name + '.txt', array, delimiter=' ', fmt='%1.6f')
+    
 def save_as_list(name, array):
     np.savetxt(name + '.txt', array.ravel(), delimiter=' ', fmt='%1.6f')
     

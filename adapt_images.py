@@ -5,7 +5,7 @@ import re
 from image import load_image, crop_image, scale_image, savez_compressed
 from camera_model import CameraModel
 from transform import build_se3_transform, build_intrinsic_matrix
-from array_utils import save_as_list, list_to_array
+from array_utils import save_as_list, list_to_array, save
 parser = argparse.ArgumentParser(description='Play back images from a given directory')
 
 parser.add_argument('dir', type=str, help='Directory containing images.')
@@ -89,6 +89,8 @@ if(args.extrinsics_dir):
         intrinsic_matrix = build_intrinsic_matrix(focal_length, principal_point)        
         p_matrix = intrinsic_matrix * extrinsic_matrix[0:3]
         p_matrix_file_path = os.path.join(output_dir, 'p_matrix')
+        t_matrix_file_path = os.path.join(output_dir, 't_matrix')
         save_as_list(p_matrix_file_path, p_matrix)
+        save(t_matrix_file_path, extrinsic_matrix)
         
         
