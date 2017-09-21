@@ -13,6 +13,8 @@
 ###############################################################################
 
 import re
+import numpy as np
+from scipy.misc import imresize, imsave, imread
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 
@@ -39,11 +41,35 @@ def load_image(image_path, model=None):
         pattern = BAYER_STEREO
     else:
         pattern = BAYER_MONO
-
-    img = Image.open(image_path)
-    img = demosaic(img, pattern)
-    if model:
+    
+    if model:    
+        img = demosaic(Image.open(image_path), pattern)    
         img = model.undistort(img)
-
+        img = rgb_2_grey(img)
+    else:
+        img = non_demosaic_load(image_path)
+    assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
     return img
 
+def non_demosaic_load(image_path):
+    return imread(image_path)
+
+
+def crop_image(num_array, cropx, cropy):
+    y = num_array.shape[0]
+    x = num_array.shape[1]
+    startx = x // 2 - (cropx // 2)
+    starty = y // 2 - (cropy // 2)
+    return num_array[starty:starty + cropy, startx:startx+cropx]    
+
+def scale_image(num_array, sizex, sizey):
+    return imresize(num_array, (sizey,sizex))
+
+def save_image(num_array, path):
+    imsave(path, num_array)
+
+def savez_compressed(path, array):
+    np.savez_compressed(path, array)
+
+def rgb_2_grey(img):
+    return np.dot(img[...,:3],[0.299, 0.587, 0.114]).astype(img.dtype)

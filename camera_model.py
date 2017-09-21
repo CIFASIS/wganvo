@@ -147,3 +147,8 @@ class CameraModel:
         lut = lut.reshape([2, lut.size // 2])
         self.bilinear_lut = lut.transpose()
 
+    def get_focal_length(self):
+        return self.focal_length
+    def get_principal_point(self):
+        return self.principal_point
+        
