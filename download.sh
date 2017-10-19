@@ -53,7 +53,7 @@ while read url_dataset; do
 	fi		
 	IFS='_' read -ra FOLDERS <<< "$filename"
 	dataset_image_directory="${output_dataset_directory}/${FOLDERS[0]}/${FOLDERS[1]}/${FOLDERS[2]}"	
-	python "${SOURCE_DIR}/adapt_images.py" "$dataset_image_directory" --models_dir "${MODELS_DIR}" --extrinsics_dir "${EXTRINSICS_DIR}" --crop "${CROP_WIDTH}" "${CROP_HEIGHT}" --scale "${SCALE_WIDTH}" "${SCALE_HEIGHT}" --output_dir "${output_dataset_directory}" # &	
+	python "${SOURCE_DIR}/adapt_images.py" "$dataset_image_directory" --models_dir "${MODELS_DIR}" --crop "${CROP_WIDTH}" "${CROP_HEIGHT}" --scale "${SCALE_WIDTH}" "${SCALE_HEIGHT}" --output_dir "${output_dataset_directory}" # &	
 	# TODO comment this line when running in background	
 	if [ "$tar_output" -eq 0 ]; then
 		rm -rf "${dataset_image_directory}"
