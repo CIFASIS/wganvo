@@ -4,11 +4,11 @@
 
 import numpy as np
 
-def save(name, array):
-    np.savetxt(name + '.txt', array, delimiter=' ', fmt='%1.6f')
+def save(name, array, fmt='%1.6f'):
+    np.savetxt(name + '.txt', array, delimiter=' ', fmt=fmt)
     
-def save_as_list(name, array):
-    np.savetxt(name + '.txt', array.ravel(), delimiter=' ', fmt='%1.6f')
+def save_as_list(name, array, fmt='%1.6f'):
+    np.savetxt(name + '.txt', array.ravel(), delimiter=' ', fmt=fmt)
     
 def list_to_array(list):
     return np.array(list)
