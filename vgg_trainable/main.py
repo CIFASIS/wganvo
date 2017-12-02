@@ -171,6 +171,7 @@ def run_training():
       duration = time.time() - start_time
 
       # Write the summaries and print an overview fairly often.
+      print step
       if step % 100 == 0:
         # Print status to stdout.
         print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
