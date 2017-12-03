@@ -70,7 +70,8 @@ def fill_feed_dict(data_set, images_pl, labels_pl):
   # Create the feed_dict for the placeholders filled with the next
   # `batch size` examples.
   images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
-                                                 FLAGS.fake_data)
+                                                 FLAGS.fake_data,
+                                                 False)
   feed_dict = {
       images_pl: images_feed,
       labels_pl: labels_feed,
@@ -171,7 +172,8 @@ def run_training():
       duration = time.time() - start_time
 
       # Write the summaries and print an overview fairly often.
-      print step
+      print(step)
+
       if step % 100 == 0:
         # Print status to stdout.
         print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
