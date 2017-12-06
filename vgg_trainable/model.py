@@ -60,8 +60,20 @@ def loss(logits, labels):
   #cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
   #    labels=labels, logits=logits, name='xentropy')
   #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
-  return tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(labels, logits))))
+  p_matrix = tf.reshape(logits, [3,4])
+  r_matrix = p_matrix[:3, :3]
+  n_id = tf.matmul(r_matrix, r_matrix, transpose_b = True)
+  identity = tf.eye(3)
+  alpha = 1
+  cost = euclidean_distance(n_id, identity) * alpha
+  return rmse(labels, logits) + cost
 
+
+def euclidean_distance(a, b):
+  return tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(a, b))))
+
+def rmse(labels, logits):
+  return tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(labels, logits))))
 
 def training(loss, learning_rate):
   """Sets up the training Ops.

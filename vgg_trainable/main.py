@@ -33,7 +33,6 @@ import model
 # Basic model parameters as external flags.
 FLAGS = None
 
-
 def placeholder_inputs(batch_size):
   """Generate placeholder variables to represent the input tensors.
   These placeholders are used as inputs by the rest of the model building
@@ -49,7 +48,7 @@ def placeholder_inputs(batch_size):
   # rather than the full size of the train or test data sets.
   images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
                                                          input_data.IMAGE_HEIGHT, input_data.IMAGE_WIDTH, 2))
-  labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, 12))
+  labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, input_data.LABELS_SIZE))
   return images_placeholder, labels_placeholder
 
 
@@ -108,6 +107,7 @@ def do_eval(sess,
 
 
 def run_training():
+  print("START")
   """Train MNIST for a number of steps."""
   # Get the sets of images and labels for training, validation, and
   # test on MNIST.

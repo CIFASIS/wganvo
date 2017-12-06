@@ -8,7 +8,7 @@ Datasets = collections.namedtuple('Datasets', ['train', 'validation', 'test'])
 IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
-
+LABELS_SIZE = 6
 class DataSet(object):
   def __init__(self,
                images,
@@ -127,7 +127,7 @@ def read_data_sets(data_dir, fake_data):
 def _inputs(dir):
     main_key = 'arr_0'
     images_filename = os.path.join(dir,"images.npz")
-    labels_filename = os.path.join(dir,"p.npz")
+    labels_filename = os.path.join(dir,"angles.npz")
     dataset = numpy.load(images_filename)[main_key]
     raw_labels = numpy.load(labels_filename)[main_key]
     num_examples = raw_labels.size
@@ -138,7 +138,7 @@ def _inputs(dir):
         single_raw_label = raw_labels[i]
         src_idx = single_raw_label['src_idx']
         dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'].reshape(12)
+        label = single_raw_label['ang'] #.reshape(LABELS_SIZE)
         labels.append(label)
         frame_1 = dataset[src_idx]
         frame_2 = dataset[dst_idx]
