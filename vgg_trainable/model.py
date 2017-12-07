@@ -29,7 +29,7 @@ from __future__ import print_function
 
 import vgg
 import tensorflow as tf
-
+MATRIX_MATCH_TOLERANCE = 1e-4
 def inference(images):
   """Build the model up to where it may be used for inference.
   Args:
@@ -46,27 +46,84 @@ def inference(images):
 def loss(logits, labels):
   """Calculates the loss from the logits and the labels.
   Args:
-    logits: Logits tensor, float - [batch_size, NUM_CLASSES].
-    labels: Labels tensor, int32 - [batch_size].
+    logits:
+    labels:
   Returns:
     loss: Loss tensor of type float.
   """
-  # The raw formulation of cross-entropy,
-  #
-  #   tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(tf.nn.softmax(y)),
-  #                                 reduction_indices=[1]))
-  #
-  # can be numerically unstable. We instead use tf.nn.softmax_cross_entropy_with_logits
-  #cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
-  #    labels=labels, logits=logits, name='xentropy')
-  #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
-  p_matrix = tf.reshape(logits, [3,4])
-  r_matrix = p_matrix[:3, :3]
-  n_id = tf.matmul(r_matrix, r_matrix, transpose_b = True)
+  components = tf.Variable([])
+  i = tf.constant(0)
+  while_condition = lambda i, p: tf.less(i, logits.shape[0])
+  def body(i, pred_components):
+    p_matrix = tf.reshape(logits[i], [3, 4])
+    cost = get_cost(p_matrix)
+    res = tf.concat([pred_components, se3_to_components(p_matrix)],0)
+    return i + 1, res
+
+  r, pred_components  = tf.while_loop(while_condition, body, [i, components],shape_invariants=[i.get_shape(),
+                                                   tf.TensorShape([None])])
+  return rmse(tf.convert_to_tensor(pred_components), labels) #+ cost
+
+def get_cost(pred):
+  r_matrix = pred[:3, :3]
+  n_id = tf.matmul(r_matrix, r_matrix, transpose_b=True)
   identity = tf.eye(3)
   alpha = 1
-  cost = euclidean_distance(n_id, identity) * alpha
-  return rmse(labels, logits) + cost
+  return euclidean_distance(n_id, identity) * alpha
+
+
+def se3_to_components(se3):
+  #xyzrpy[0:3]
+  xyz = tf.transpose(se3[0:3, 3]) #.transpose()
+  #xyzrpy[3:6] \
+  rpy = so3_to_euler(se3[0:3, 0:3])
+
+  return tf.concat([xyz, rpy], 0)
+
+def euler_to_so3(rpy):
+    """Converts Euler angles to an SO3 rotation matrix.
+
+    Args:
+        rpy (list[float]): Euler angles (in radians). Must have three components.
+
+    Returns:
+        numpy.matrixlib.defmatrix.matrix: 3x3 SO3 rotation matrix
+
+    Raises:
+        ValueError: if `len(rpy) != 3`.
+
+    """
+
+    R_x = tf.stack([tf.stack([1., 0., 0.]),
+                       tf.stack([0., tf.cos(rpy[0]), tf.negative(tf.sin(rpy[0]))]),
+                       tf.stack([0., tf.sin(rpy[0]), tf.cos(rpy[0])])])
+    R_y = tf.stack([tf.stack([tf.cos(rpy[1]), 0., tf.sin(rpy[1])]),
+                       tf.stack([0., 1., 0.]),
+                       tf.stack([tf.negative(tf.sin(rpy[1])), 0., tf.cos(rpy[1])])])
+    R_z = tf.stack([tf.stack([tf.cos(rpy[2]), tf.negative(tf.sin(rpy[2])), 0.]),
+                    tf.stack([tf.sin(rpy[2]), tf.cos(rpy[2]), 0.]),
+                    tf.stack([0., 0., 1.])])
+    R_zyx = tf.matmul(tf.matmul(R_z, R_y), R_x)
+    return R_zyx
+
+
+def so3_to_euler(so3):
+    #if so3.shape != (3, 3):
+    #    raise ValueError("SO3 matrix must be 3x3")
+    roll = tf.atan2(so3[2, 1], so3[2, 2])
+    yaw = tf.atan2(so3[1, 0], so3[0, 0])
+    denom = tf.sqrt(tf.add(tf.pow(so3[0, 0], 2), tf.pow(so3[1, 0], 2)))
+    pitch_poss = [tf.atan2(-so3[2, 0], denom), tf.atan2(-so3[2, 0], -denom)]
+
+    R = euler_to_so3((roll, pitch_poss[0], yaw))
+    def throw_exc(): print("Error")
+      #raise ValueError("Could not find valid pitch angle")
+    def true_fn(): return tf.stack([roll, pitch_poss[0], yaw])
+    def false_fn():
+      R = euler_to_so3((roll, pitch_poss[1], yaw))
+      return tf.cond(tf.reduce_sum(tf.subtract(so3, R)) > MATRIX_MATCH_TOLERANCE, lambda: tf.constant([1.]) , lambda: tf.stack([roll, pitch_poss[1], yaw]))
+
+    return tf.cond(tf.reduce_sum(tf.subtract(so3, R)) < MATRIX_MATCH_TOLERANCE, true_fn, false_fn)
 
 
 def euclidean_distance(a, b):
