@@ -71,10 +71,10 @@ class Vgg19:
 
         self.fc8 = self.fc_layer(self.relu7, 4096, 12, "fc8")
 
-        self.prob = tf.nn.softmax(self.fc8, name="prob")
+        #self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         self.data_dict = None
-        return self.prob
+        return self.fc8
 
     def avg_pool(self, bottom, name):
         return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)

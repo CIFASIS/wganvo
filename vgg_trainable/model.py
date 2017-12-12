@@ -43,14 +43,20 @@ def inference(images):
 
 
 
-def loss(logits, labels):
+def loss(output, target):
   """Calculates the loss from the logits and the labels.
   Args:
-    logits:
-    labels:
+    output:
+    target:
   Returns:
     loss: Loss tensor of type float.
   """
+  return rmse(target, output)
+
+
+
+
+def loss_(logits, labels):
   components = tf.Variable([])
   i = tf.constant(0)
   while_condition = lambda i, p: tf.less(i, logits.shape[0])
@@ -129,8 +135,8 @@ def so3_to_euler(so3):
 def euclidean_distance(a, b):
   return tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(a, b))))
 
-def rmse(labels, logits):
-  return tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(labels, logits))))
+def rmse(targets, outputs):
+  return tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(targets, outputs))))
 
 def training(loss, learning_rate):
   """Sets up the training Ops.
