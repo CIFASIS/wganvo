@@ -122,7 +122,7 @@ def read_data_sets(data_dir, fake_data):
     print len(listdir)
     for item in listdir:
         path = os.path.join(data_dir, item)
-        if os.path.isdir(path):
+        if os.path.isdir(path) and "centre_" in item:
             im, lb = _inputs(path)
             images.append(im)
             labels.append(lb)
@@ -130,11 +130,12 @@ def read_data_sets(data_dir, fake_data):
     print(len(im))
     images = numpy.array(images)
     labels = numpy.array(labels)
-    print images.shape
+    print images.dtype, images.shape
     print labels.shape
-    train_images, train_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-06-24-15-03-07_stereo_centre_01")
-    validation_images, validation_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
-    test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
+
+    train_images, train_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-06-24-15-03-07_stereo_centre_01")
+    validation_images, validation_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-12-54-54_stereo_centre_01")
+    test_images, test_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-13-17-51_stereo_centre_01")
     train = DataSet(train_images, train_labels)
     validation = DataSet(validation_images, validation_labels)
     test = DataSet(test_images, test_labels)
@@ -161,6 +162,6 @@ def _inputs(dir):
         images[i,...,0] = frame_1
         images[i,...,1] = frame_2
         #images.append((frame_1, frame_2))
-    #print images.shape
+    print images.dtype, images.dtype
     ### images,
     return images, numpy.array(labels)
