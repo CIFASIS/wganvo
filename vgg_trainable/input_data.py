@@ -116,6 +116,22 @@ class DataSet(object):
 
 
 def read_data_sets(data_dir, fake_data):
+    labels = []
+    images = []
+    listdir = os.listdir(data_dir)
+    print len(listdir)
+    for item in listdir:
+        path = os.path.join(data_dir, item)
+        if os.path.isdir(path):
+            im, lb = _inputs(path)
+            images.append(im)
+            labels.append(lb)
+
+    print(len(im))
+    images = numpy.array(images)
+    labels = numpy.array(labels)
+    print images.shape
+    print labels.shape
     train_images, train_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-06-24-15-03-07_stereo_centre_01")
     validation_images, validation_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
     test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
@@ -138,7 +154,7 @@ def _inputs(dir):
         single_raw_label = raw_labels[i]
         src_idx = single_raw_label['src_idx']
         dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'] #.reshape(LABELS_SIZE)
+        label = single_raw_label['P'].reshape(LABELS_SIZE)
         labels.append(label)
         frame_1 = dataset[src_idx]
         frame_2 = dataset[dst_idx]
