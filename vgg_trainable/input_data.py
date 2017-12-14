@@ -9,6 +9,10 @@ IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
 LABELS_SIZE = 12
+DEFAULT_MAIN_KEY = 'arr_0'
+P_FILENAME = "p.npz"
+DEFAULT_LABEL_KEY = "P"
+
 class DataSet(object):
   def __init__(self,
                images,
@@ -118,28 +122,54 @@ class DataSet(object):
 def read_data_sets(data_dir, fake_data):
     labels = []
     images = []
-    listdir = os.listdir(data_dir)
-    print len(listdir)
-    for item in listdir:
-        path = os.path.join(data_dir, item)
-        if os.path.isdir(path) and "centre_" in item:
-            im, lb = _inputs(path)
-            images.append(im)
-            labels.append(lb)
 
-    print(len(im))
-    images = numpy.array(images)
-    labels = numpy.array(labels)
-    print images.dtype, images.shape
-    print labels.shape
+    listdir = [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item)) and "centre_" in item]
+    train_images, train_labels = _get_images_and_labels(listdir)
+    #print(len(im))
 
-    train_images, train_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-06-24-15-03-07_stereo_centre_01")
-    validation_images, validation_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-12-54-54_stereo_centre_01")
-    test_images, test_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-13-17-51_stereo_centre_01")
+    #train_images, train_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-06-24-15-03-07_stereo_centre_01")
+    validation_images, validation_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
+    test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
     train = DataSet(train_images, train_labels)
     validation = DataSet(validation_images, validation_labels)
     test = DataSet(test_images, test_labels)
     return Datasets(train=train, validation=validation, test=test)
+
+def _get_images_and_labels(listdir):
+    total_num_examples = 0
+    labels = []
+    frames_idx_map = {}
+    for dir in listdir:
+        labels_filename = os.path.join(dir, P_FILENAME)
+        raw_labels = numpy.load(labels_filename)[DEFAULT_MAIN_KEY]
+        num_examples = raw_labels.size
+        total_num_examples += num_examples
+        idxs = []
+        for i in range(num_examples):
+            single_raw_label = raw_labels[i]
+            src_idx = single_raw_label['src_idx']
+            dst_idx = single_raw_label['dst_idx']
+            idxs.append((src_idx, dst_idx))
+            label = single_raw_label[DEFAULT_LABEL_KEY].reshape(LABELS_SIZE)
+            labels.append(label)
+        if dir in frames_idx_map:
+            raise ValueError("Duplicate directory: " + dir)
+        frames_idx_map[dir] = idxs
+    assert len(labels) == total_num_examples
+    images = numpy.empty((total_num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
+    iter = 0
+    for dir in listdir:
+        images_filename = os.path.join(dir, "images.npz")
+        dataset = numpy.load(images_filename)[DEFAULT_MAIN_KEY]
+        if dir not in frames_idx_map:
+            raise ValueError(dir + " directory")
+        for (src_idx, dst_idx) in frames_idx_map[dir]:
+            images[iter,...,0] = dataset[src_idx]
+            images[iter,...,1] = dataset[dst_idx]
+            iter += 1
+    assert total_num_examples == iter
+    return images, numpy.array(labels)
+
 
 def _inputs(dir):
     main_key = 'arr_0'
