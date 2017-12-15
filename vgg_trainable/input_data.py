@@ -48,10 +48,10 @@ class DataSet(object):
         assert images.shape[3] == 1
         images = images.reshape(images.shape[0],
                                 images.shape[1] * images.shape[2])
-      if dtype == "float32":
+#      if dtype == "float32":
         # Convert from [0, 255] -> [0.0, 1.0].
-        images = images.astype(numpy.float32)
-        images = numpy.multiply(images, 1.0 / 255.0)
+#        images = images.astype(numpy.float32, copy=False)
+#        images = numpy.multiply(images, 1.0 / 255.0)
     self._images = images
     self._labels = labels
     self._epochs_completed = 0
@@ -128,11 +128,11 @@ def read_data_sets(data_dir, fake_data):
     #print(len(im))
 
     #train_images, train_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-06-24-15-03-07_stereo_centre_01")
-    validation_images, validation_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
-    test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
-    train = DataSet(train_images, train_labels)
-    validation = DataSet(validation_images, validation_labels)
-    test = DataSet(test_images, test_labels)
+    validation_images, validation_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-12-54-54_stereo_centre_01")
+    test_images, test_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-13-17-51_stereo_centre_01")
+    train = DataSet(train_images, train_labels, dtype="uint8")
+    validation = DataSet(validation_images, validation_labels, dtype="uint8")
+    test = DataSet(test_images, test_labels, dtype="uint8")
     return Datasets(train=train, validation=validation, test=test)
 
 def _get_images_and_labels(listdir):
@@ -164,8 +164,8 @@ def _get_images_and_labels(listdir):
         if dir not in frames_idx_map:
             raise ValueError(dir + " directory")
         for (src_idx, dst_idx) in frames_idx_map[dir]:
-            images[iter,...,0] = dataset[src_idx]
-            images[iter,...,1] = dataset[dst_idx]
+            images[iter,...,0] = dataset[src_idx] * (1.0 / 255.0)
+            images[iter,...,1] = dataset[dst_idx] * (1.0 / 255.0)
             iter += 1
     assert total_num_examples == iter
     return images, numpy.array(labels)
