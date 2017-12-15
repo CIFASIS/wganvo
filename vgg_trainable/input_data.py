@@ -73,7 +73,7 @@ class DataSet(object):
   def epochs_completed(self):
     return self._epochs_completed
 
-  def next_batch(self, batch_size, fake_data=False, shuffle=True):
+  def next_batch(self, batch_size, fake_data=False, shuffle=False):
     """Return the next `batch_size` examples from this data set."""
     if fake_data:
       fake_image = [1] * 784
@@ -120,14 +120,9 @@ class DataSet(object):
 
 
 def read_data_sets(data_dir, fake_data):
-    labels = []
-    images = []
-
     listdir = [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item)) and "centre_" in item]
     train_images, train_labels = _get_images_and_labels(listdir)
-    #print(len(im))
 
-    #train_images, train_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-06-24-15-03-07_stereo_centre_01")
     validation_images, validation_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-12-54-54_stereo_centre_01")
     test_images, test_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-13-17-51_stereo_centre_01")
     train = DataSet(train_images, train_labels, dtype="uint8")

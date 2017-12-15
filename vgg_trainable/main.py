@@ -52,8 +52,8 @@ def placeholder_inputs(batch_size):
   return images_placeholder, labels_placeholder
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl):
-  """Fills the feed_dict for training the given step.
+def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
+  """Fills the feed_dict for training the given step or for evaluating the entire dataset.
   A feed_dict takes the form of:
   feed_dict = {
       <placeholder>: <tensor of values to be passed for placeholder>,
@@ -68,9 +68,15 @@ def fill_feed_dict(data_set, images_pl, labels_pl):
   """
   # Create the feed_dict for the placeholders filled with the next
   # `batch size` examples.
-  images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
+  if(feed_with_batch):
+    images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
                                                  FLAGS.fake_data,
                                                  False)
+  # Create the feed_dict for the placeholders filled with the entire dataset
+  else:
+    images_feed = data_set.images()
+    labels_feed = data_set.labels()
+
   feed_dict = {
       images_pl: images_feed,
       labels_pl: labels_feed,
@@ -79,32 +85,27 @@ def fill_feed_dict(data_set, images_pl, labels_pl):
 
 
 def do_eval(sess,
-            eval_correct,
+            evaluation,
             images_placeholder,
             labels_placeholder,
             data_set):
-  """Runs one evaluation against the full epoch of data.
-  Args:
-    sess: The session in which the model has been trained.
-    eval_correct: The Tensor that returns the number of correct predictions.
-    images_placeholder: The images placeholder.
-    labels_placeholder: The labels placeholder.
-    data_set: The set of images and labels to evaluate, from
-      input_data.read_data_sets().
-  """
-  # And run one epoch of eval.
-  true_count = 0  # Counts the number of correct predictions.
-  steps_per_epoch = data_set.num_examples // FLAGS.batch_size
-  num_examples = steps_per_epoch * FLAGS.batch_size
-  for step in xrange(steps_per_epoch):
+    """Runs one evaluation against the full epoch of data.
+    Args:
+        sess: The session in which the model has been trained.
+        evaluation: .
+        images_placeholder: The images placeholder.
+        labels_placeholder: The labels placeholder.
+        data_set: The set of images and labels to evaluate, from
+        input_data.read_data_sets().
+    """
+    # And run one epoch of eval.
     feed_dict = fill_feed_dict(data_set,
                                images_placeholder,
-                               labels_placeholder)
-    rmse = sess.run(eval_correct, feed_dict=feed_dict)
-  #precision = float(true_count) / num_examples
-    print('  RMSE @ 1: %0.04f' %
-        (rmse))
-
+                               labels_placeholder,
+                               True)
+    rmse = sess.run(evaluation, feed_dict=feed_dict)
+    print('  RMSE @ 1: %0.04f' % (rmse))
+    return rmse
 
 def run_training():
   print("START")
@@ -119,21 +120,30 @@ def run_training():
     images_placeholder, labels_placeholder = placeholder_inputs(
         FLAGS.batch_size)
 
+    train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
+        data_sets.train.num_examples)
+    validation_dataset_images_placeholder, validation_dataset_labels_placeholder = placeholder_inputs(
+        data_sets.validation.num_examples)
+    test_dataset_images_placeholder, test_dataset_labels_placeholder = placeholder_inputs(data_sets.test.num_examples)
+
     # Build a Graph that computes predictions from the inference model.
-    logits = model.inference(images_placeholder)
+    outputs = model.inference(images_placeholder)
 
     # Add to the Graph the Ops for loss calculation.
-    loss = model.loss(logits, labels_placeholder)
+    loss = model.loss(outputs, labels_placeholder)
 
     # Add to the Graph the Ops that calculate and apply gradients.
-    print(loss)
     train_op = model.training(loss, FLAGS.learning_rate)
 
     # Add the Op to compare the logits to the labels during evaluation.
-    eval_correct = model.evaluation(logits, labels_placeholder)
+    evaluation = model.evaluation(outputs, labels_placeholder)
 
     # Build the summary Tensor based on the TF collection of Summaries.
     summary = tf.summary.merge_all()
+
+    train_evaluation = model.evaluation(model.inference(train_dataset_images_placeholder), train_dataset_labels_placeholder)
+    validation_evaluation = model.evaluation(model.inference(validation_dataset_images_placeholder), validation_dataset_labels_placeholder)
+    test_evaluation = model.evaluation(model.inference(test_dataset_images_placeholder), test_dataset_labels_placeholder)
 
     # Add the variable initializer Op.
     init = tf.global_variables_initializer()
@@ -160,7 +170,8 @@ def run_training():
       # for this particular training step.
       feed_dict = fill_feed_dict(data_sets.train,
                                  images_placeholder,
-                                 labels_placeholder)
+                                 labels_placeholder,
+                                 True)
 
       # Run one step of the model.  The return values are the activations
       # from the `train_op` (which is discarded) and the `loss` Op.  To
@@ -185,28 +196,28 @@ def run_training():
 
       # Save a checkpoint and evaluate the model periodically.
       if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-        checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
-        saver.save(sess, checkpoint_file, global_step=step)
+        #checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
+        #saver.save(sess, checkpoint_file, global_step=step)
         # Evaluate against the training set.
         print('Training Data Eval:')
         do_eval(sess,
-                eval_correct,
-                images_placeholder,
-                labels_placeholder,
+                evaluation,
+                train_dataset_images_placeholder,
+                train_dataset_labels_placeholder,
                 data_sets.train)
         # Evaluate against the validation set.
         print('Validation Data Eval:')
         do_eval(sess,
-                eval_correct,
-                images_placeholder,
-                labels_placeholder,
+                evaluation,
+                validation_dataset_images_placeholder,
+                validation_dataset_labels_placeholder,
                 data_sets.validation)
         # Evaluate against the test set.
         print('Test Data Eval:')
         do_eval(sess,
-                eval_correct,
-                images_placeholder,
-                labels_placeholder,
+                evaluation,
+                test_dataset_images_placeholder,
+                test_dataset_labels_placeholder,
                 data_sets.test)
 
 
@@ -228,7 +239,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--max_steps',
       type=int,
-      default=2000,
+      default=10000,
       help='Number of steps to run trainer.'
   )
   parser.add_argument(
