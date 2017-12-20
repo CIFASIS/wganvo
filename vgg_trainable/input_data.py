@@ -123,8 +123,8 @@ def read_data_sets(data_dir, fake_data):
     listdir = [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item)) and "centre_" in item]
     train_images, train_labels = _get_images_and_labels(listdir)
 
-    validation_images, validation_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-12-54-54_stereo_centre_01")
-    test_images, test_labels = _inputs("/home/jcremona/tesina/workspace.back1/2014-05-06-13-17-51_stereo_centre_01")
+    validation_images, validation_labels = _inputs("/home/cremona/workspace/2014-05-06-12-54-54_stereo_centre_01")
+    test_images, test_labels = _inputs("/home/cremona/workspace/2014-05-06-13-17-51_stereo_centre_01")
     train = DataSet(train_images, train_labels, dtype="uint8")
     validation = DataSet(validation_images, validation_labels, dtype="uint8")
     test = DataSet(test_images, test_labels, dtype="uint8")

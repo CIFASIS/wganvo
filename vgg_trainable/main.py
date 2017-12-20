@@ -99,13 +99,16 @@ def do_eval(sess,
         input_data.read_data_sets().
     """
     # And run one epoch of eval.
-    feed_dict = fill_feed_dict(data_set,
+	steps_per_epoch = data_set.num_examples // FLAGS.batch_size
+	for step in xrange(steps_per_epoch):
+	    feed_dict = fill_feed_dict(data_set,
                                images_placeholder,
                                labels_placeholder,
                                feed_with_batch=False)
-    rmse = sess.run(evaluation, feed_dict=feed_dict)
-    print('  RMSE @ 1: %0.04f' % (rmse))
-    return rmse
+	    s = sess.run(evaluation, feed_dict=feed_dict)
+	    	
+#    print('  RMSE @ 1: %0.04f' % (rmse))
+#    return rmse
 
 def run_training():
   print("START")
@@ -142,8 +145,8 @@ def run_training():
     summary = tf.summary.merge_all()
 
     #train_evaluation = model.evaluation(model.inference(train_dataset_images_placeholder), train_dataset_labels_placeholder)
-    validation_evaluation = model.evaluation(model.inference(validation_dataset_images_placeholder), validation_dataset_labels_placeholder)
-    test_evaluation = model.evaluation(model.inference(test_dataset_images_placeholder), test_dataset_labels_placeholder)
+    #validation_evaluation = model.evaluation(model.inference(validation_dataset_images_placeholder), validation_dataset_labels_placeholder)
+    #test_evaluation = model.evaluation(model.inference(test_dataset_images_placeholder), test_dataset_labels_placeholder)
 
     # Add the variable initializer Op.
     init = tf.global_variables_initializer()
@@ -181,12 +184,11 @@ def run_training():
       _, loss_value = sess.run([train_op, loss],
                                feed_dict=feed_dict)
 
-      duration = time.time() - start_time
-
       # Write the summaries and print an overview fairly often.
       print(step)
 
       if step % 100 == 0:
+	duration = time.time() - start_time
         # Print status to stdout.
         print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
         # Update the events file.
