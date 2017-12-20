@@ -34,22 +34,22 @@ import model
 FLAGS = None
 
 def placeholder_inputs(batch_size):
-  """Generate placeholder variables to represent the input tensors.
-  These placeholders are used as inputs by the rest of the model building
-  code and will be fed from the downloaded data in the .run() loop, below.
-  Args:
-    batch_size: The batch size will be baked into both placeholders.
-  Returns:
-    images_placeholder: Images placeholder.
-    labels_placeholder: Labels placeholder.
-  """
-  # Note that the shapes of the placeholders match the shapes of the full
-  # image and label tensors, except the first dimension is now batch_size
-  # rather than the full size of the train or test data sets.
-  images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
+	"""Generate placeholder variables to represent the input tensors.
+	These placeholders are used as inputs by the rest of the model building
+	code and will be fed from the downloaded data in the .run() loop, below.
+	Args:
+		batch_size: The batch size will be baked into both placeholders.
+	Returns:
+		images_placeholder: Images placeholder.
+		labels_placeholder: Labels placeholder.
+	"""
+	# Note that the shapes of the placeholders match the shapes of the full
+	# image and label tensors, except the first dimension is now batch_size
+	# rather than the full size of the train or test data sets.
+	images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
                                                          input_data.IMAGE_HEIGHT, input_data.IMAGE_WIDTH, 2))
-  labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, input_data.LABELS_SIZE))
-  return images_placeholder, labels_placeholder
+	labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, input_data.LABELS_SIZE))
+	return images_placeholder, labels_placeholder
 
 
 def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
@@ -74,8 +74,8 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
                                                  False)
   # Create the feed_dict for the placeholders filled with the entire dataset
   else:
-    images_feed = data_set.images()
-    labels_feed = data_set.labels()
+    images_feed = data_set.images
+    labels_feed = data_set.labels
 
   feed_dict = {
       images_pl: images_feed,
@@ -102,7 +102,7 @@ def do_eval(sess,
     feed_dict = fill_feed_dict(data_set,
                                images_placeholder,
                                labels_placeholder,
-                               True)
+                               feed_with_batch=False)
     rmse = sess.run(evaluation, feed_dict=feed_dict)
     print('  RMSE @ 1: %0.04f' % (rmse))
     return rmse
@@ -120,8 +120,8 @@ def run_training():
     images_placeholder, labels_placeholder = placeholder_inputs(
         FLAGS.batch_size)
 
-    train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
-        data_sets.train.num_examples)
+    #train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
+    #    data_sets.train.num_examples)
     validation_dataset_images_placeholder, validation_dataset_labels_placeholder = placeholder_inputs(
         data_sets.validation.num_examples)
     test_dataset_images_placeholder, test_dataset_labels_placeholder = placeholder_inputs(data_sets.test.num_examples)
@@ -141,7 +141,7 @@ def run_training():
     # Build the summary Tensor based on the TF collection of Summaries.
     summary = tf.summary.merge_all()
 
-    train_evaluation = model.evaluation(model.inference(train_dataset_images_placeholder), train_dataset_labels_placeholder)
+    #train_evaluation = model.evaluation(model.inference(train_dataset_images_placeholder), train_dataset_labels_placeholder)
     validation_evaluation = model.evaluation(model.inference(validation_dataset_images_placeholder), validation_dataset_labels_placeholder)
     test_evaluation = model.evaluation(model.inference(test_dataset_images_placeholder), test_dataset_labels_placeholder)
 
@@ -199,26 +199,26 @@ def run_training():
         #checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
         #saver.save(sess, checkpoint_file, global_step=step)
         # Evaluate against the training set.
-        print('Training Data Eval:')
-        do_eval(sess,
-                evaluation,
-                train_dataset_images_placeholder,
-                train_dataset_labels_placeholder,
-                data_sets.train)
+        #print('Training Data Eval:')
+        #do_eval(sess,
+        #        train_evaluation,
+        #        train_dataset_images_placeholder,
+        #        train_dataset_labels_placeholder,
+        #        data_sets.train)
         # Evaluate against the validation set.
         print('Validation Data Eval:')
-        do_eval(sess,
-                evaluation,
-                validation_dataset_images_placeholder,
-                validation_dataset_labels_placeholder,
-                data_sets.validation)
+        #do_eval(sess,
+        #        validation_evaluation,
+        #        validation_dataset_images_placeholder,
+        #        validation_dataset_labels_placeholder,
+        #        data_sets.validation)
         # Evaluate against the test set.
         print('Test Data Eval:')
-        do_eval(sess,
-                evaluation,
-                test_dataset_images_placeholder,
-                test_dataset_labels_placeholder,
-                data_sets.test)
+        #do_eval(sess,
+        #        test_evaluation,
+        #        test_dataset_images_placeholder,
+        #        test_dataset_labels_placeholder,
+        #        data_sets.test)
 
 
 def main(_):
