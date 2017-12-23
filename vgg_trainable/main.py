@@ -24,12 +24,13 @@ import os
 import sys
 import time
 
+from debian.debtags import output
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 import input_data
 import model
-
+import numpy as np
 # Basic model parameters as external flags.
 FLAGS = None
 
@@ -99,16 +100,50 @@ def do_eval(sess,
         input_data.read_data_sets().
     """
     # And run one epoch of eval.
-	steps_per_epoch = data_set.num_examples // FLAGS.batch_size
-	for step in xrange(steps_per_epoch):
+    steps_per_epoch = data_set.num_examples // FLAGS.batch_size
+    sum_squared_errors = 0
+    for step in xrange(steps_per_epoch):
 	    feed_dict = fill_feed_dict(data_set,
                                images_placeholder,
                                labels_placeholder,
-                               feed_with_batch=False)
-	    s = sess.run(evaluation, feed_dict=feed_dict)
-	    	
-#    print('  RMSE @ 1: %0.04f' % (rmse))
-#    return rmse
+                               feed_with_batch=True)
+	    squared_errors = sess.run(evaluation, feed_dict=feed_dict)
+        #sum_squared_errors += np.sum(squared_errors)
+    #sum_squared_errors / step
+
+
+def do_evaluation(sess,
+            outputs,
+            images_placeholder,
+            labels_placeholder,
+            data_set):
+    """Runs one evaluation against the full epoch of data.
+    Args:
+        sess: The session in which the model has been trained.
+        evaluation: .
+        images_placeholder: The images placeholder.
+        labels_placeholder: The labels placeholder.
+        data_set: The set of images and labels to evaluate, from
+        input_data.read_data_sets().
+    """
+    evaluation = tf.square(tf.subtract(outputs, labels_placeholder))
+    steps_per_epoch = data_set.num_examples // FLAGS.batch_size
+    num_examples = steps_per_epoch * FLAGS.batch_size
+    prediction_matrix = np.empty((num_examples, input_data.LABELS_SIZE))
+    batch_index = 0
+    for step in xrange(steps_per_epoch):
+      feed_dict = fill_feed_dict(data_set,
+                             images_placeholder,
+                             labels_placeholder,
+                             feed_with_batch=True)
+      squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
+      init = batch_index * FLAGS.batch_size
+      end = (batch_index + 1) * FLAGS.batch_size
+      prediction_matrix[init:end] = prediction
+      batch_index += 1
+    return np.std(prediction_matrix, axis=0)
+    #    print('  RMSE @ 1: %0.04f' % (rmse))
+    #    return rmse
 
 def run_training():
   print("START")
@@ -188,7 +223,7 @@ def run_training():
       print(step)
 
       if step % 100 == 0:
-	duration = time.time() - start_time
+        duration = time.time() - start_time
         # Print status to stdout.
         print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
         # Update the events file.
@@ -201,26 +236,32 @@ def run_training():
         #checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
         #saver.save(sess, checkpoint_file, global_step=step)
         # Evaluate against the training set.
-        #print('Training Data Eval:')
-        #do_eval(sess,
-        #        train_evaluation,
-        #        train_dataset_images_placeholder,
-        #        train_dataset_labels_placeholder,
-        #        data_sets.train)
+        print('Training Data Eval:')
+        stds = do_evaluation(sess,
+                outputs,
+                images_placeholder,
+                labels_placeholder,
+                data_sets.train)
+        for i in xrange(stds):
+            tagname = str(i)
+            summary.value.add(tag=tagname, simple_value=stds[i])
+            summary_writer.add_summary(summary_str, step)
+            summary_writer.flush()
+
         # Evaluate against the validation set.
         print('Validation Data Eval:')
-        #do_eval(sess,
-        #        validation_evaluation,
-        #        validation_dataset_images_placeholder,
-        #        validation_dataset_labels_placeholder,
-        #        data_sets.validation)
+        do_evaluation(sess,
+                outputs,
+                images_placeholder,
+                labels_placeholder,
+                data_sets.validation)
         # Evaluate against the test set.
         print('Test Data Eval:')
-        #do_eval(sess,
-        #        test_evaluation,
-        #        test_dataset_images_placeholder,
-        #        test_dataset_labels_placeholder,
-        #        data_sets.test)
+        do_evaluation(sess,
+                outputs,
+                images_placeholder,
+                labels_placeholder,
+                data_sets.test)
 
 
 def main(_):

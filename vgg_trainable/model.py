@@ -51,7 +51,7 @@ def loss(output, target):
   Returns:
     loss: Loss tensor of type float.
   """
-  return rmse(target, output)
+  return rmse(output, target)
 
 
 
@@ -68,7 +68,7 @@ def loss_(logits, labels):
 
   r, pred_components  = tf.while_loop(while_condition, body, [i, components],shape_invariants=[i.get_shape(),
                                                    tf.TensorShape([None])])
-  return rmse(tf.convert_to_tensor(pred_components), labels) #+ cost
+  return rmse(labels, tf.convert_to_tensor(pred_components)) #+ cost
 
 def get_cost(pred):
   r_matrix = pred[:3, :3]
@@ -133,10 +133,14 @@ def so3_to_euler(so3):
 
 
 def euclidean_distance(a, b):
-  return tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(a, b))))
+  return tf.sqrt(tf.reduce_sum(squared_error(a, b)))
 
-def rmse(targets, outputs):
-  return tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(targets, outputs))))
+def rmse(outputs, targets):
+  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
+
+def squared_error(a, b):
+    return tf.square(tf.subtract(a, b))
+
 
 def training(loss, learning_rate):
   """Sets up the training Ops.
@@ -152,7 +156,7 @@ def training(loss, learning_rate):
   """
   # Add a scalar summary for the snapshot loss.
   tf.summary.scalar('loss', loss)
-  # Create the gradient descent optimizer with the given learning rate.
+
   optimizer = tf.train.AdamOptimizer(learning_rate)
   # Create a variable to track the global step.
   global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -163,11 +167,11 @@ def training(loss, learning_rate):
 
 
 def evaluation(outputs, targets):
-  """Evaluate the quality of the logits at predicting the label.
-  Args:
+    """Evaluate the quality of the logits at predicting the label.
+    Args:
     outputs: [batch_size, NUM_CLASSES].
     targets: [batch_size]
-  Returns:
+    Returns:
 
-  """
-  return loss(outputs, targets)
+    """
+    return squared_error(outputs, targets)
