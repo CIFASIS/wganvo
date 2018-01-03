@@ -19,7 +19,6 @@ class DataSet(object):
                labels,
                fake_data=False,
                one_hot=False,
-               dtype="float32",
                reshape=False,
                seed=None):
     """Construct a DataSet.
@@ -31,9 +30,9 @@ class DataSet(object):
     # If op level seed is not set, use whatever graph level seed is returned
     #numpy.random.seed(seed1 if seed is None else seed2)
     #dtype = dtypes.as_dtype(dtype).base_dtype
-    if dtype not in ("uint8", "float32"):
-      raise TypeError('Invalid image dtype %r, expected uint8 or float32' %
-                      dtype)
+    #if dtype not in ("uint8", "float32"):
+    #  raise TypeError('Invalid image dtype %r, expected uint8 or float32' %
+    #                  dtype)
     if fake_data:
       self._num_examples = 10000
       self.one_hot = one_hot
@@ -74,6 +73,10 @@ class DataSet(object):
     return self._epochs_completed
 
   def next_batch(self, batch_size, fake_data=False, shuffle=False):
+    im, lb = self._next_batch(batch_size, fake_data, shuffle)
+    return im * (1.0 / 255.0), lb
+
+  def _next_batch(self, batch_size, fake_data=False, shuffle=False):
     """Return the next `batch_size` examples from this data set."""
     if fake_data:
       fake_image = [1] * 784
@@ -119,22 +122,34 @@ class DataSet(object):
 
 
 
-def read_data_sets(data_dir, fake_data):
-    listdir = [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item)) and "centre_" in item]
-    train_images, train_labels = _get_images_and_labels(listdir)
+def get_list_of_subdirectories(data_dir):
+    return [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item))]
 
-    validation_images, validation_labels = _inputs("/home/cremona/workspace/2014-05-06-12-54-54_stereo_centre_01")
-    test_images, test_labels = _inputs("/home/cremona/workspace/2014-05-06-13-17-51_stereo_centre_01")
-    train = DataSet(train_images, train_labels, dtype="uint8")
-    validation = DataSet(validation_images, validation_labels, dtype="uint8")
-    test = DataSet(test_images, test_labels, dtype="uint8")
+def read_data_sets(train_data_dir, test_data_dir, validation_data_dir, fake_data):
+    train_list_dir = get_list_of_subdirectories(train_data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
+    test_list_dir = get_list_of_subdirectories(test_data_dir)
+    if validation_data_dir is not None:
+        validation_list_dir = get_list_of_subdirectories(validation_data_dir)
+        validation_images, validation_labels = _get_images_and_labels(validation_list_dir)
+    else:
+        # FIXME obtener desde train data
+        validation_images, validation_labels = _inputs(
+            "/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
+    train_images, train_labels = _get_images_and_labels(train_list_dir)
+    test_images, test_labels = _get_images_and_labels(test_list_dir)
+
+
+    #test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
+    train = DataSet(train_images, train_labels, fake_data=fake_data)
+    validation = DataSet(validation_images, validation_labels, fake_data=fake_data)
+    test = DataSet(test_images, test_labels, fake_data=fake_data)
     return Datasets(train=train, validation=validation, test=test)
 
-def _get_images_and_labels(listdir):
+def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32"):
     total_num_examples = 0
     labels = []
     frames_idx_map = {}
-    for dir in listdir:
+    for dir in list_of_subdir:
         labels_filename = os.path.join(dir, P_FILENAME)
         raw_labels = numpy.load(labels_filename)[DEFAULT_MAIN_KEY]
         num_examples = raw_labels.size
@@ -151,21 +166,22 @@ def _get_images_and_labels(listdir):
             raise ValueError("Duplicate directory: " + dir)
         frames_idx_map[dir] = idxs
     assert len(labels) == total_num_examples
-    images = numpy.empty((total_num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
+    images = numpy.empty((total_num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
     iter = 0
-    for dir in listdir:
+    for dir in list_of_subdir:
         images_filename = os.path.join(dir, "images.npz")
         dataset = numpy.load(images_filename)[DEFAULT_MAIN_KEY]
+        assert dataset.dtype == images_dtype
         if dir not in frames_idx_map:
             raise ValueError(dir + " directory")
         for (src_idx, dst_idx) in frames_idx_map[dir]:
-            images[iter,...,0] = dataset[src_idx] * (1.0 / 255.0)
-            images[iter,...,1] = dataset[dst_idx] * (1.0 / 255.0)
+            images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
+            images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
             iter += 1
     assert total_num_examples == iter
-    return images, numpy.array(labels)
+    return images, numpy.array(labels, dtype=labels_dtype)
 
-
+# TODO delete
 def _inputs(dir):
     main_key = 'arr_0'
     images_filename = os.path.join(dir,"images.npz")
@@ -187,6 +203,6 @@ def _inputs(dir):
         images[i,...,0] = frame_1
         images[i,...,1] = frame_2
         #images.append((frame_1, frame_2))
-    print images.dtype, images.dtype
+    #print images.dtype, images.dtype
     ### images,
     return images, numpy.array(labels)

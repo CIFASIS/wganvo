@@ -127,30 +127,52 @@ def do_evaluation(sess,
         input_data.read_data_sets().
     """
     evaluation = tf.square(tf.subtract(outputs, labels_placeholder))
-    steps_per_epoch = data_set.num_examples // FLAGS.batch_size
-    num_examples = steps_per_epoch * FLAGS.batch_size
+    batch_size = FLAGS.batch_size
+    steps_per_epoch = data_set.num_examples // batch_size
+    num_examples = steps_per_epoch * batch_size
     prediction_matrix = np.empty((num_examples, input_data.LABELS_SIZE))
+    accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     batch_index = 0
     for step in xrange(steps_per_epoch):
       feed_dict = fill_feed_dict(data_set,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True)
-      squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
-      init = batch_index * FLAGS.batch_size
-      end = (batch_index + 1) * FLAGS.batch_size
+      print step, batch_index
+      batch_squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
+      accum_squared_errors += batch_squared_errors
+      # TODO acumular los squared errors, luego fuera del for sumarlos sobre el axis 0.
+      # obtener el rmse
+      # obtener std
+      # normalizar
+      # tmb obtener el promedio
+      init = batch_index * batch_size
+      end = (batch_index + 1) * batch_size
       prediction_matrix[init:end] = prediction
       batch_index += 1
+    squared_errors = np.sum(accum_squared_errors, axis = 0)
+    mean_squared_errors = squared_errors / num_examples
+    print "dtype_pred_matrix", prediction_matrix.dtype
     return np.std(prediction_matrix, axis=0)
     #    print('  RMSE @ 1: %0.04f' % (rmse))
     #    return rmse
+
+def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
+    ind = 1
+    summary = tf.Summary()
+    for std in arr:
+        tagname = prefix_tagname + str(ind)
+        summary.value.add(tag=tagname, simple_value=std)
+        ind += 1
+    summary_writer.add_summary(summary, step)
+    summary_writer.flush()
 
 def run_training():
   print("START")
   """Train MNIST for a number of steps."""
   # Get the sets of images and labels for training, validation, and
   # test on MNIST.
-  data_sets = input_data.read_data_sets(FLAGS.input_data_dir, FLAGS.fake_data)
+  data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data)
 
   # Tell TensorFlow that the model will be built into the default Graph.
   with tf.Graph().as_default():
@@ -160,9 +182,6 @@ def run_training():
 
     #train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
     #    data_sets.train.num_examples)
-    validation_dataset_images_placeholder, validation_dataset_labels_placeholder = placeholder_inputs(
-        data_sets.validation.num_examples)
-    test_dataset_images_placeholder, test_dataset_labels_placeholder = placeholder_inputs(data_sets.test.num_examples)
 
     # Build a Graph that computes predictions from the inference model.
     outputs = model.inference(images_placeholder)
@@ -174,14 +193,10 @@ def run_training():
     train_op = model.training(loss, FLAGS.learning_rate)
 
     # Add the Op to compare the logits to the labels during evaluation.
-    evaluation = model.evaluation(outputs, labels_placeholder)
+    #evaluation = model.evaluation(outputs, labels_placeholder)
 
     # Build the summary Tensor based on the TF collection of Summaries.
     summary = tf.summary.merge_all()
-
-    #train_evaluation = model.evaluation(model.inference(train_dataset_images_placeholder), train_dataset_labels_placeholder)
-    #validation_evaluation = model.evaluation(model.inference(validation_dataset_images_placeholder), validation_dataset_labels_placeholder)
-    #test_evaluation = model.evaluation(model.inference(test_dataset_images_placeholder), test_dataset_labels_placeholder)
 
     # Add the variable initializer Op.
     init = tf.global_variables_initializer()
@@ -242,19 +257,15 @@ def run_training():
                 images_placeholder,
                 labels_placeholder,
                 data_sets.train)
-        for i in xrange(stds):
-            tagname = str(i)
-            summary.value.add(tag=tagname, simple_value=stds[i])
-            summary_writer.add_summary(summary_str, step)
-            summary_writer.flush()
-
+        add_array_to_tensorboard(stds, "train_component_", summary_writer, step)
         # Evaluate against the validation set.
         print('Validation Data Eval:')
-        do_evaluation(sess,
+        stds = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.validation)
+        add_array_to_tensorboard(stds, "validation_component_", summary_writer, step)
         # Evaluate against the test set.
         print('Test Data Eval:')
         do_evaluation(sess,
@@ -262,6 +273,7 @@ def run_training():
                 images_placeholder,
                 labels_placeholder,
                 data_sets.test)
+        add_array_to_tensorboard(stds, "test_component_", summary_writer, step)
 
 
 def main(_):
@@ -273,6 +285,25 @@ def main(_):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
+  parser.add_argument(
+      'train_data_dir',
+      type=str,
+      default=".",
+      help='Directory to put the train data.'
+  )
+  parser.add_argument(
+      'test_data_dir',
+      type=str,
+      default=".",
+      help='Directory to put the test data.'
+  )
+
+  parser.add_argument(
+      '--validation_data_dir',
+      type=str,
+      help='Directory to put the test data.'
+  )
+
   parser.add_argument(
       '--learning_rate',
       type=float,
@@ -290,13 +321,6 @@ if __name__ == '__main__':
       type=int,
       default=100,
       help='Batch size.  Must divide evenly into the dataset sizes.'
-  )
-  parser.add_argument(
-      '--input_data_dir',
-      type=str,
-      default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
-                           'tensorflow/mnist/input_data'),
-      help='Directory to put the input data.'
   )
   parser.add_argument(
       '--log_dir',

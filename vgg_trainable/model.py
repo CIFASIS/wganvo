@@ -165,7 +165,7 @@ def training(loss, learning_rate):
   train_op = optimizer.minimize(loss, global_step=global_step)
   return train_op
 
-
+# Deprecated
 def evaluation(outputs, targets):
     """Evaluate the quality of the logits at predicting the label.
     Args:
