@@ -130,7 +130,7 @@ def do_evaluation(sess,
     batch_size = FLAGS.batch_size
     steps_per_epoch = data_set.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
-    prediction_matrix = np.empty((num_examples, input_data.LABELS_SIZE))
+    prediction_matrix = np.empty((num_examples, input_data.LABELS_SIZE), dtype="float32")
     accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     batch_index = 0
     for step in xrange(steps_per_epoch):
@@ -138,22 +138,19 @@ def do_evaluation(sess,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True)
-      print step, batch_index
+      print(step, batch_index)
       batch_squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
       accum_squared_errors += batch_squared_errors
-      # TODO acumular los squared errors, luego fuera del for sumarlos sobre el axis 0.
-      # obtener el rmse
-      # obtener std
-      # normalizar
-      # tmb obtener el promedio
       init = batch_index * batch_size
       end = (batch_index + 1) * batch_size
       prediction_matrix[init:end] = prediction
       batch_index += 1
     squared_errors = np.sum(accum_squared_errors, axis = 0)
     mean_squared_errors = squared_errors / num_examples
-    print "dtype_pred_matrix", prediction_matrix.dtype
-    return np.std(prediction_matrix, axis=0)
+    print("dtype_pred_matrix", prediction_matrix.dtype)
+    variance = np.var(prediction_matrix, axis=0) # variance = std ** 2
+    norm_mse = mean_squared_errors / variance
+    return mean_squared_errors, norm_mse
     #    print('  RMSE @ 1: %0.04f' % (rmse))
     #    return rmse
 
@@ -252,28 +249,31 @@ def run_training():
         #saver.save(sess, checkpoint_file, global_step=step)
         # Evaluate against the training set.
         print('Training Data Eval:')
-        stds = do_evaluation(sess,
+        mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.train)
-        add_array_to_tensorboard(stds, "train_component_", summary_writer, step)
+        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
+        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
         # Evaluate against the validation set.
         print('Validation Data Eval:')
-        stds = do_evaluation(sess,
+        mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.validation)
-        add_array_to_tensorboard(stds, "validation_component_", summary_writer, step)
+        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
+        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
         # Evaluate against the test set.
         print('Test Data Eval:')
-        do_evaluation(sess,
+        mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.test)
-        add_array_to_tensorboard(stds, "test_component_", summary_writer, step)
+        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
+        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
 
 
 def main(_):
@@ -326,7 +326,7 @@ if __name__ == '__main__':
       '--log_dir',
       type=str,
       default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
-                           'tensorflow/mnist/logs/fully_connected_feed'),
+                           'tensorflow/jcremona/tesina/logs/'),
       help='Directory to put the log data.'
   )
   parser.add_argument(
