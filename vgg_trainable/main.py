@@ -24,7 +24,7 @@ import os
 import sys
 import time
 
-from debian.debtags import output
+#from debian.debtags import output
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
@@ -138,7 +138,7 @@ def do_evaluation(sess,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True)
-      print(step, batch_index)
+      #print(step, batch_index)
       batch_squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
       accum_squared_errors += batch_squared_errors
       init = batch_index * batch_size
@@ -147,10 +147,11 @@ def do_evaluation(sess,
       batch_index += 1
     squared_errors = np.sum(accum_squared_errors, axis = 0)
     mean_squared_errors = squared_errors / num_examples
-    print("dtype_pred_matrix", prediction_matrix.dtype)
+    rmse = np.sqrt(np.sum(squared_errors) / num_examples)
+    #print("dtype_pred_matrix", prediction_matrix.dtype)
     variance = np.var(prediction_matrix, axis=0) # variance = std ** 2
     norm_mse = mean_squared_errors / variance
-    return mean_squared_errors, norm_mse
+    return rmse, mean_squared_errors, norm_mse
     #    print('  RMSE @ 1: %0.04f' % (rmse))
     #    return rmse
 
@@ -211,6 +212,7 @@ def run_training():
 
     # Run the Op to initialize the variables.
     sess.run(init)
+    total_start_time = time.time()
 
     # Start the training loop.
     for step in xrange(FLAGS.max_steps):
@@ -249,16 +251,18 @@ def run_training():
         #saver.save(sess, checkpoint_file, global_step=step)
         # Evaluate against the training set.
         print('Training Data Eval:')
-        mse, norm_mse = do_evaluation(sess,
+        rmse, mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.train)
+	# FIXME renombrar vbles y crear un metodo para agregar un unico escalar a tensorboard
+	add_array_to_tensorboard([rmse], "tr_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
         # Evaluate against the validation set.
         print('Validation Data Eval:')
-        mse, norm_mse = do_evaluation(sess,
+        rmse, mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
@@ -267,19 +271,22 @@ def run_training():
         add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
         # Evaluate against the test set.
         print('Test Data Eval:')
-        mse, norm_mse = do_evaluation(sess,
+        rmse, mse, norm_mse = do_evaluation(sess,
                 outputs,
                 images_placeholder,
                 labels_placeholder,
                 data_sets.test)
+	add_array_to_tensorboard([rmse], "te_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
-
+    total_duration = time.time() - total_start_time
+    print('Total: %.3f sec' % (total_duration))
 
 def main(_):
-  if tf.gfile.Exists(FLAGS.log_dir):
-    tf.gfile.DeleteRecursively(FLAGS.log_dir)
-  tf.gfile.MakeDirs(FLAGS.log_dir)
+  #if tf.gfile.Exists(FLAGS.log_dir):
+  
+    #tf.gfile.DeleteRecursively(FLAGS.log_dir)
+  #tf.gfile.MakeDirs(FLAGS.log_dir)
   run_training()
 
 
