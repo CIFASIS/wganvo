@@ -28,18 +28,24 @@ printf "\n"
 
 output_dir=$WORKSPACE_DIR
 processing_dataset=false
-while read url_dataset; do
-	wget --save-cookies $FILENAME_COOKIE_TEMP --server-response -q -O - $url_dataset > $FILENAME_TEMP
+
+function download_file { # 1 = url, 2 = user, 3 = pass, 4 = filename_path
+    	wget --save-cookies $FILENAME_COOKIE_TEMP --server-response -q -O - $1 > $FILENAME_TEMP
 	csrf_middleware_token=$(sed -n "/csrfmiddlewaretoken/s/.*name='csrfmiddlewaretoken'\s\+value='\([^']\+\).*/\1/p" $FILENAME_TEMP)
 	next_redirect=$(sed -n '/next/s/.*name="next"\s\+value="\([^"]\+\).*/\1/p' $FILENAME_TEMP)
 	next_redirect_encoded=$(php -r "echo urlencode(\"$next_redirect\");")
 	# TODO why isn't referer header mandatory?
 	#referer_header="Referer: ${referer_encoded}"
-	post_data="csrfmiddlewaretoken="$csrf_middleware_token"&username="$USERNAME"&password="$PASSWORD"&next="$next_redirect_encoded
-	filename=$(basename $url_dataset)
+	post_data="csrfmiddlewaretoken="$csrf_middleware_token"&username="$2"&password="$3"&next="$next_redirect_encoded
+	wget --load-cookies $FILENAME_COOKIE_TEMP --post-data="${post_data}" "${LOGIN_URL}" -O $4
+}
+
+while read url_dataset; do
+        filename=$(basename $url_dataset)
+        dirname=$(dirname $url_dataset)
 	directory_name="${filename%.*}"
 	filename_path="${output_dir}/${filename}"
-	wget --load-cookies $FILENAME_COOKIE_TEMP --post-data="${post_data}" "${LOGIN_URL}" -O "${filename_path}"
+        download_file $url_dataset $USERNAME $PASSWORD $filename_path	
 	output_dataset_directory="${output_dir}/${directory_name}"
 	mkdir -p $output_dataset_directory
 	tar xopf "${filename_path}" -C $output_dataset_directory
@@ -52,8 +58,20 @@ while read url_dataset; do
 		processing_dataset=false
 	fi		
 	IFS='_' read -ra FOLDERS <<< "$filename"
-	dataset_image_directory="${output_dataset_directory}/${FOLDERS[0]}/${FOLDERS[1]}/${FOLDERS[2]}"	
-	python "${SOURCE_DIR}/adapt_images.py" "$dataset_image_directory" --models_dir "${MODELS_DIR}" --extrinsics_dir "${EXTRINSICS_DIR}" --crop "${CROP_WIDTH}" "${CROP_HEIGHT}" --scale "${SCALE_WIDTH}" "${SCALE_HEIGHT}" --output_dir "${output_dataset_directory}" # &	
+	dataset_image_directory="${output_dataset_directory}/${FOLDERS[0]}/${FOLDERS[1]}/${FOLDERS[2]}"
+        vo_filename="${FOLDERS[0]}_vo.tar"
+        vo_filename_path="${output_dir}/${vo_filename}"
+        url_vo_file="${dirname}/$vo_filename"        
+        download_file $url_vo_file $USERNAME $PASSWORD $vo_filename_path
+        output_vo_directory="${output_dataset_directory}/vo"
+        mkdir -p $output_vo_directory
+        tar xopf $vo_filename_path -C $output_vo_directory
+        tar_vo_output=$?
+        if [ "$tar_vo_output" -eq 0 ]; then
+		rm "${vo_filename_path}"
+	fi
+        poses_file="${output_vo_directory}/${FOLDERS[0]}/vo/vo.csv"
+	python "${SOURCE_DIR}/adapt_images.py" "$dataset_image_directory" "$poses_file" --models_dir "${MODELS_DIR}" --crop "${CROP_WIDTH}" "${CROP_HEIGHT}" --scale "${SCALE_WIDTH}" "${SCALE_HEIGHT}" --output_dir "${output_dataset_directory}" # &	
 	# TODO comment this line when running in background	
 	if [ "$tar_output" -eq 0 ]; then
 		rm -rf "${dataset_image_directory}"
@@ -64,3 +82,4 @@ while read url_dataset; do
 	rm $FILENAME_TEMP
 done <$DATASET_LIST_FILE
 rm $FILENAME_COOKIE_TEMP
+
