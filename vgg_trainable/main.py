@@ -26,8 +26,11 @@ import time
 
 #from debian.debtags import output
 from six.moves import xrange  # pylint: disable=redefined-builtin
-import tensorflow as tf
 
+# Scipy
+from scipy import linalg
+
+import tensorflow as tf
 import input_data
 import model
 import numpy as np
@@ -126,26 +129,49 @@ def do_evaluation(sess,
         data_set: The set of images and labels to evaluate, from
         input_data.read_data_sets().
     """
+    rows_reshape = 3
+    columns_reshape = 4
+    components_vector_size = 6
     evaluation = tf.square(tf.subtract(outputs, labels_placeholder))
     batch_size = FLAGS.batch_size
     steps_per_epoch = data_set.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
-    prediction_matrix = np.empty((num_examples, input_data.LABELS_SIZE), dtype="float32")
-    accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
-    batch_index = 0
+    prediction_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
+    #target_matrix = np.empty((num_examples, input_data.LABELS_SIZE), dtype="float32")
+    #accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
+    squared_errors = np.zeros(components_vector_size, dtype="float32")
+    #batch_index = 0
+    k_matrix = np.ones((3,3))
+    inv_k_matrix = np.linalg.inv(k_matrix)
     for step in xrange(steps_per_epoch):
       feed_dict = fill_feed_dict(data_set,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True)
-      #print(step, batch_index)
-      batch_squared_errors, prediction = sess.run([evaluation, outputs], feed_dict=feed_dict)
-      accum_squared_errors += batch_squared_errors
-      init = batch_index * batch_size
-      end = (batch_index + 1) * batch_size
-      prediction_matrix[init:end] = prediction
-      batch_index += 1
-    squared_errors = np.sum(accum_squared_errors, axis = 0)
+      batch_squared_errors, prediction, target = sess.run([evaluation, outputs, labels_placeholder], feed_dict=feed_dict)
+      #accum_squared_errors += batch_squared_errors
+      init = step * batch_size
+      end = (step + 1) * batch_size
+      #prediction_matrix[init:end] = prediction
+      #target_matrix[init:end] = target
+      for i in xrange(batch_size):
+	assert init+i < end
+	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
+	current_target = target[i].reshape(rows_reshape,columns_reshape)
+	# Get the closest rotation matrix
+	u,_ = linalg.polar(current_prediction)
+	closest_curr_pred_s3_matrix = np.concatenate([u, [[0,0,0,1]]],axis=0)
+	curr_target_s3_matrix = np.concatenate([current_target, [[0,0,0,1]]], axis=0)
+	# components = [x,y,z, roll, pitch, yaw]
+	curr_pred_components = s3_to_components(closest_curr_pred_s3_matrix)
+	curr_target_components = s3_to_components(curr_target_s3_matrix)
+	curr_squared_error = np.square(curr_pred_components-curr_target_components)
+	squared_errors += curr_squared_error
+	prediction_matrix[i] = curr_pred_components
+     # batch_index += 1
+
+
+    #squared_errors = np.sum(accum_squared_errors, axis = 0)
     mean_squared_errors = squared_errors / num_examples
     rmse = np.sqrt(np.sum(squared_errors) / num_examples)
     #print("dtype_pred_matrix", prediction_matrix.dtype)
