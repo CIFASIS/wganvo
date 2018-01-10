@@ -30,12 +30,24 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 # Scipy
 from scipy import linalg
 
+#from ... import transform 
+import sys, os, inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
+#import sys
+#from os import path
+#sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
+from transform import se3_to_components
+from array_utils import load
 import tensorflow as tf
 import input_data
 import model
 import numpy as np
+import numpy.matlib as matlib
 # Basic model parameters as external flags.
 FLAGS = None
+DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
 def placeholder_inputs(batch_size):
 	"""Generate placeholder variables to represent the input tensors.
@@ -119,7 +131,8 @@ def do_evaluation(sess,
             outputs,
             images_placeholder,
             labels_placeholder,
-            data_set):
+            data_set,
+	    k_matrix):
     """Runs one evaluation against the full epoch of data.
     Args:
         sess: The session in which the model has been trained.
@@ -141,7 +154,7 @@ def do_evaluation(sess,
     #accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     squared_errors = np.zeros(components_vector_size, dtype="float32")
     #batch_index = 0
-    k_matrix = np.ones((3,3))
+    #k_matrix = np.ones((3,3))
     inv_k_matrix = np.linalg.inv(k_matrix)
     for step in xrange(steps_per_epoch):
       feed_dict = fill_feed_dict(data_set,
@@ -157,14 +170,33 @@ def do_evaluation(sess,
       for i in xrange(batch_size):
 	assert init+i < end
 	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
+	# P = K * [R|t] => [R|t] = K^(-1) * P
+	curr_pred_transform_matrix = inv_k_matrix * current_prediction	
 	current_target = target[i].reshape(rows_reshape,columns_reshape)
+	curr_target_transform_matrix = inv_k_matrix * current_target
 	# Get the closest rotation matrix
-	u,_ = linalg.polar(current_prediction)
-	closest_curr_pred_s3_matrix = np.concatenate([u, [[0,0,0,1]]],axis=0)
-	curr_target_s3_matrix = np.concatenate([current_target, [[0,0,0,1]]], axis=0)
+	u,_ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
+	if i == 0:
+		print("--- K MATRIX ---")
+		print(k_matrix)
+		print(inv_k_matrix)
+		print("--- PRED ---")
+		print(current_prediction)
+		print(curr_pred_transform_matrix)
+		print("--- TARGET ---")
+		print(current_target)
+		print(curr_target_transform_matrix)
+		print("--- DECOMP ---")
+		print(u)
+	# Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
+	closest_curr_pred_s3_matrix = matlib.identity(4)
+	closest_curr_pred_s3_matrix[0:3, 0:3] = u
+	closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3,3]
+	curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0,0,0,1]]], axis=0)
+	# From [R|t] matrix to components
 	# components = [x,y,z, roll, pitch, yaw]
-	curr_pred_components = s3_to_components(closest_curr_pred_s3_matrix)
-	curr_target_components = s3_to_components(curr_target_s3_matrix)
+	curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
+	curr_target_components = se3_to_components(curr_target_s3_matrix)
 	curr_squared_error = np.square(curr_pred_components-curr_target_components)
 	squared_errors += curr_squared_error
 	prediction_matrix[i] = curr_pred_components
@@ -178,8 +210,6 @@ def do_evaluation(sess,
     variance = np.var(prediction_matrix, axis=0) # variance = std ** 2
     norm_mse = mean_squared_errors / variance
     return rmse, mean_squared_errors, norm_mse
-    #    print('  RMSE @ 1: %0.04f' % (rmse))
-    #    return rmse
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
     ind = 1
@@ -193,11 +223,12 @@ def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
 
 def run_training():
   print("START")
+  #se3_to_components(np.array([1,2,3]))
   """Train MNIST for a number of steps."""
   # Get the sets of images and labels for training, validation, and
   # test on MNIST.
   data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data)
-
+  intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
   # Tell TensorFlow that the model will be built into the default Graph.
   with tf.Graph().as_default():
     # Generate placeholders for the images and labels.
@@ -281,7 +312,8 @@ def run_training():
                 outputs,
                 images_placeholder,
                 labels_placeholder,
-                data_sets.train)
+                data_sets.train,
+		intrinsic_matrix)
 	# FIXME renombrar vbles y crear un metodo para agregar un unico escalar a tensorboard
 	add_array_to_tensorboard([rmse], "tr_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
@@ -292,7 +324,8 @@ def run_training():
                 outputs,
                 images_placeholder,
                 labels_placeholder,
-                data_sets.validation)
+                data_sets.validation,
+		intrinsic_matrix)
         add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
         # Evaluate against the test set.
@@ -301,7 +334,8 @@ def run_training():
                 outputs,
                 images_placeholder,
                 labels_placeholder,
-                data_sets.test)
+                data_sets.test,
+		intrinsic_matrix)
 	add_array_to_tensorboard([rmse], "te_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
@@ -361,6 +395,12 @@ if __name__ == '__main__':
       default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
                            'tensorflow/jcremona/tesina/logs/'),
       help='Directory to put the log data.'
+  )
+  parser.add_argument(
+      '--intrinsics_dir',
+      type=str,
+      default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
+      help='Intrinsic matrix path'
   )
   parser.add_argument(
       '--fake_data',
