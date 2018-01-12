@@ -41,9 +41,11 @@ def inference(images):
   return v.build(images)
 
 
+# FIXME revisar
+def rmse(outputs, targets):
+  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
 
-
-def loss(output, target):
+def loss(output, target, variance):
   """Calculates the loss from the logits and the labels.
   Args:
     output:
@@ -51,7 +53,7 @@ def loss(output, target):
   Returns:
     loss: Loss tensor of type float.
   """
-  return rmse(output, target)
+  return mse_norm(output, target, variance)
 
 
 
@@ -135,8 +137,8 @@ def so3_to_euler(so3):
 def euclidean_distance(a, b):
   return tf.sqrt(tf.reduce_sum(squared_error(a, b)))
 
-def rmse(outputs, targets):
-  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
+def mse_norm(outputs, targets, variance):
+  return tf.reduce_mean(tf.reduce_mean(squared_error(outputs, targets), axis=0) / variance)
 
 def squared_error(a, b):
     return tf.square(tf.subtract(a, b))

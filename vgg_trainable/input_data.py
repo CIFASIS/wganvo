@@ -61,6 +61,10 @@ class DataSet(object):
     return self._images
 
   @property
+  def images_norm(self):
+    return self._images * (1.0 / 255.0)
+
+  @property
   def labels(self):
     return self._labels
 
@@ -134,7 +138,7 @@ def read_data_sets(train_data_dir, test_data_dir, validation_data_dir, fake_data
     else:
         # FIXME obtener desde train data
         validation_images, validation_labels = _inputs(
-            "/home/javo/Descargas/Backup/workspace/2014-05-06-12-54-54_stereo_centre_01")
+            "/home/cremona/workspace/train/2014-05-06-12-54-54_stereo_centre_01")
     train_images, train_labels = _get_images_and_labels(train_list_dir)
     test_images, test_labels = _get_images_and_labels(test_list_dir)
 

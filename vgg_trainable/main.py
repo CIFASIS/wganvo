@@ -133,6 +133,7 @@ def do_evaluation(sess,
             labels_placeholder,
             data_set,
 	    k_matrix):
+	   # target_variance_vector):
     """Runs one evaluation against the full epoch of data.
     Args:
         sess: The session in which the model has been trained.
@@ -149,19 +150,17 @@ def do_evaluation(sess,
     batch_size = FLAGS.batch_size
     steps_per_epoch = data_set.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
-    prediction_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
-    #target_matrix = np.empty((num_examples, input_data.LABELS_SIZE), dtype="float32")
+    #prediction_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
+    target_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
     #accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     squared_errors = np.zeros(components_vector_size, dtype="float32")
-    #batch_index = 0
-    #k_matrix = np.ones((3,3))
     inv_k_matrix = np.linalg.inv(k_matrix)
     for step in xrange(steps_per_epoch):
       feed_dict = fill_feed_dict(data_set,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True)
-      batch_squared_errors, prediction, target = sess.run([evaluation, outputs, labels_placeholder], feed_dict=feed_dict)
+      prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
       #accum_squared_errors += batch_squared_errors
       init = step * batch_size
       end = (step + 1) * batch_size
@@ -176,18 +175,6 @@ def do_evaluation(sess,
 	curr_target_transform_matrix = inv_k_matrix * current_target
 	# Get the closest rotation matrix
 	u,_ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
-	if i == 0:
-		print("--- K MATRIX ---")
-		print(k_matrix)
-		print(inv_k_matrix)
-		print("--- PRED ---")
-		print(current_prediction)
-		print(curr_pred_transform_matrix)
-		print("--- TARGET ---")
-		print(current_target)
-		print(curr_target_transform_matrix)
-		print("--- DECOMP ---")
-		print(u)
 	# Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
 	closest_curr_pred_s3_matrix = matlib.identity(4)
 	closest_curr_pred_s3_matrix[0:3, 0:3] = u
@@ -199,16 +186,20 @@ def do_evaluation(sess,
 	curr_target_components = se3_to_components(curr_target_s3_matrix)
 	curr_squared_error = np.square(curr_pred_components-curr_target_components)
 	squared_errors += curr_squared_error
-	prediction_matrix[i] = curr_pred_components
-     # batch_index += 1
+	#prediction_matrix[i] = curr_pred_components
+        target_matrix[i] = curr_target_components
 
-
-    #squared_errors = np.sum(accum_squared_errors, axis = 0)
     mean_squared_errors = squared_errors / num_examples
     rmse = np.sqrt(np.sum(squared_errors) / num_examples)
-    #print("dtype_pred_matrix", prediction_matrix.dtype)
-    variance = np.var(prediction_matrix, axis=0) # variance = std ** 2
-    norm_mse = mean_squared_errors / variance
+    target_variance = np.var(target_matrix, axis=0) # variance = std ** 2
+    norm_mse = mean_squared_errors / target_variance
+    print("mse")
+    print(mean_squared_errors)
+    print("var")
+    print(target_variance)
+    print("norm_mse")
+    print(norm_mse)
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     return rmse, mean_squared_errors, norm_mse
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
@@ -220,6 +211,11 @@ def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
         ind += 1
     summary_writer.add_summary(summary, step)
     summary_writer.flush()
+
+def add_scalar_to_tensorboard(value, tagname, summary_writer, step):
+    summary = tf.Summary()
+    summary.value.add(tag=tagname, simple_value=value)
+    summary_writer.add_summary(summary, step)
 
 def run_training():
   print("START")
@@ -241,8 +237,12 @@ def run_training():
     # Build a Graph that computes predictions from the inference model.
     outputs = model.inference(images_placeholder)
 
+    train_targets_variance = np.var(data_sets.train.labels, axis=0)
+    #test_targets_variance = np.var(data_sets.test.labels, axis=0)
+    print("Targets - variance")
+    print(train_targets_variance)
     # Add to the Graph the Ops for loss calculation.
-    loss = model.loss(outputs, labels_placeholder)
+    loss = model.loss(outputs, labels_placeholder, train_targets_variance)
 
     # Add to the Graph the Ops that calculate and apply gradients.
     train_op = model.training(loss, FLAGS.learning_rate)
@@ -315,19 +315,19 @@ def run_training():
                 data_sets.train,
 		intrinsic_matrix)
 	# FIXME renombrar vbles y crear un metodo para agregar un unico escalar a tensorboard
-	add_array_to_tensorboard([rmse], "tr_rmse", summary_writer, step)
+	add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
         # Evaluate against the validation set.
-        print('Validation Data Eval:')
-        rmse, mse, norm_mse = do_evaluation(sess,
-                outputs,
-                images_placeholder,
-                labels_placeholder,
-                data_sets.validation,
-		intrinsic_matrix)
-        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
-        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
+        #print('Validation Data Eval:')
+        #rmse, mse, norm_mse = do_evaluation(sess,
+        #        outputs,
+        #        images_placeholder,
+        #        labels_placeholder,
+        #        data_sets.validation,
+	#	intrinsic_matrix)
+        #add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
+        #add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
         # Evaluate against the test set.
         print('Test Data Eval:')
         rmse, mse, norm_mse = do_evaluation(sess,
