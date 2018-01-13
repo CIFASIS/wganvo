@@ -101,6 +101,10 @@ with open(args.poses_file) as vo_file:
 transf = np.array(t_records, dtype=[('T',('float64',(3,4))),('src_idx', 'int32'),('dst_idx', 'int32')])
 proy = np.array(p_records, dtype=[('P',('float64',(3,4))),('src_idx', 'int32'),('dst_idx', 'int32')])
 angles = np.array(angles_records, dtype=[('ang',('float64',6)),('src_idx', 'int32'),('dst_idx', 'int32')])
+# Solo lo guardo una vez porque es constante para todo el dataset (o deberia serlo)
+if intrinsic_matrix is not None:
+	save(os.path.join(output_dir,"intrinsic_matrix"), intrinsic_matrix)
+	save(os.path.join(output_dir,"intrinsic_parameters"), [focal_length, principal_point])
 #path = os.path.normpath(args.dir)
 #folders = path.split(os.sep)
 #compressed_file_path = os.path.join(output_dir, folders[-3])
