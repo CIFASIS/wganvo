@@ -170,7 +170,7 @@ def do_evaluation(sess,
 	assert init+i < end
 	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
 	# P = K * [R|t] => [R|t] = K^(-1) * P
-	curr_pred_transform_matrix = inv_k_matrix * current_prediction	
+	curr_pred_transform_matrix = inv_k_matrix * current_prediction
 	current_target = target[i].reshape(rows_reshape,columns_reshape)
 	curr_target_transform_matrix = inv_k_matrix * current_target
 	# Get the closest rotation matrix
@@ -291,7 +291,7 @@ def run_training():
                                feed_dict=feed_dict)
 
       # Write the summaries and print an overview fairly often.
-      print(step)
+      #print(step)
 
       if step % 100 == 0:
         duration = time.time() - start_time
