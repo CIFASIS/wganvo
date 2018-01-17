@@ -87,7 +87,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
   if(feed_with_batch):
     images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
                                                  FLAGS.fake_data,
-                                                 False)
+                                                 shuffle=True)
   # Create the feed_dict for the placeholders filled with the entire dataset
   else:
     images_feed = data_set.images
@@ -168,6 +168,7 @@ def do_evaluation(sess,
       #target_matrix[init:end] = target
       for i in xrange(batch_size):
 	assert init+i < end
+	index = init+i
 	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
 	# P = K * [R|t] => [R|t] = K^(-1) * P
 	curr_pred_transform_matrix = inv_k_matrix * current_prediction
@@ -187,7 +188,7 @@ def do_evaluation(sess,
 	curr_squared_error = np.square(curr_pred_components-curr_target_components)
 	squared_errors += curr_squared_error
 	#prediction_matrix[i] = curr_pred_components
-        target_matrix[i] = curr_target_components
+        target_matrix[index] = curr_target_components
 
     mean_squared_errors = squared_errors / num_examples
     rmse = np.sqrt(np.sum(squared_errors) / num_examples)
@@ -226,6 +227,7 @@ def run_training():
   data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data)
   intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
   # Tell TensorFlow that the model will be built into the default Graph.
+  print("Learning rate:" + str(FLAGS.learning_rate))
   with tf.Graph().as_default():
     # Generate placeholders for the images and labels.
     images_placeholder, labels_placeholder = placeholder_inputs(
@@ -336,7 +338,7 @@ def run_training():
                 labels_placeholder,
                 data_sets.test,
 		intrinsic_matrix)
-	add_array_to_tensorboard([rmse], "te_rmse", summary_writer, step)
+	add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
     total_duration = time.time() - total_start_time

@@ -76,11 +76,11 @@ class DataSet(object):
   def epochs_completed(self):
     return self._epochs_completed
 
-  def next_batch(self, batch_size, fake_data=False, shuffle=False):
+  def next_batch(self, batch_size, fake_data=False, shuffle=True):
     im, lb = self._next_batch(batch_size, fake_data, shuffle)
     return im * (1.0 / 255.0), lb
 
-  def _next_batch(self, batch_size, fake_data=False, shuffle=False):
+  def _next_batch(self, batch_size, fake_data, shuffle):
     """Return the next `batch_size` examples from this data set."""
     if fake_data:
       fake_image = [1] * 784
