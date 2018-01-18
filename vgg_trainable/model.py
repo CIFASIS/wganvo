@@ -45,7 +45,7 @@ def inference(images):
 def rmse(outputs, targets):
   return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
 
-def loss(output, target, variance):
+def loss(outputs, targets):
   """Calculates the loss from the logits and the labels.
   Args:
     output:
@@ -53,10 +53,7 @@ def loss(output, target, variance):
   Returns:
     loss: Loss tensor of type float.
   """
-  return mse_norm(output, target, variance)
-
-
-
+  return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 def loss_(logits, labels):
   components = tf.Variable([])

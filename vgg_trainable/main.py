@@ -227,7 +227,10 @@ def run_training():
   data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data)
   intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
   # Tell TensorFlow that the model will be built into the default Graph.
-  print("Learning rate:" + str(FLAGS.learning_rate))
+  print("Learning rate: " + str(FLAGS.learning_rate))
+  print("Steps: " + str(FLAGS.max_steps))
+  print("Batch size: " + str(FLAGS.batch_size))
+  print(FLAGS)
   with tf.Graph().as_default():
     # Generate placeholders for the images and labels.
     images_placeholder, labels_placeholder = placeholder_inputs(
@@ -239,12 +242,11 @@ def run_training():
     # Build a Graph that computes predictions from the inference model.
     outputs = model.inference(images_placeholder)
 
-    train_targets_variance = np.var(data_sets.train.labels, axis=0)
+    #train_targets_variance = np.var(data_sets.train.labels, axis=0)
+    #(X- np.mean(X, axis=0)) / np.std(X,axis=0) #Guardar la media y el std para volver a los valores originales
     #test_targets_variance = np.var(data_sets.test.labels, axis=0)
-    print("Targets - variance")
-    print(train_targets_variance)
     # Add to the Graph the Ops for loss calculation.
-    loss = model.loss(outputs, labels_placeholder, train_targets_variance)
+    loss = model.loss(outputs, labels_placeholder)
 
     # Add to the Graph the Ops that calculate and apply gradients.
     train_op = model.training(loss, FLAGS.learning_rate)
