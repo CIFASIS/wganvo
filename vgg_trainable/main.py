@@ -68,7 +68,7 @@ def placeholder_inputs(batch_size):
 	return images_placeholder, labels_placeholder
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
+def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, standardize_targets=False):
   """Fills the feed_dict for training the given step or for evaluating the entire dataset.
   A feed_dict takes the form of:
   feed_dict = {
@@ -87,7 +87,8 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
   if(feed_with_batch):
     images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
                                                  FLAGS.fake_data,
-                                                 shuffle=True)
+                                                 shuffle=True,
+						 standardize_targets=standardize_targets)
   # Create the feed_dict for the placeholders filled with the entire dataset
   else:
     images_feed = data_set.images
@@ -99,40 +100,13 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False):
   }
   return feed_dict
 
-
-def do_eval(sess,
-            evaluation,
-            images_placeholder,
-            labels_placeholder,
-            data_set):
-    """Runs one evaluation against the full epoch of data.
-    Args:
-        sess: The session in which the model has been trained.
-        evaluation: .
-        images_placeholder: The images placeholder.
-        labels_placeholder: The labels placeholder.
-        data_set: The set of images and labels to evaluate, from
-        input_data.read_data_sets().
-    """
-    # And run one epoch of eval.
-    steps_per_epoch = data_set.num_examples // FLAGS.batch_size
-    sum_squared_errors = 0
-    for step in xrange(steps_per_epoch):
-	    feed_dict = fill_feed_dict(data_set,
-                               images_placeholder,
-                               labels_placeholder,
-                               feed_with_batch=True)
-	    squared_errors = sess.run(evaluation, feed_dict=feed_dict)
-        #sum_squared_errors += np.sum(squared_errors)
-    #sum_squared_errors / step
-
-
 def do_evaluation(sess,
             outputs,
             images_placeholder,
             labels_placeholder,
             data_set,
-	    k_matrix):
+	    k_matrix,
+            standardize_targets):
 	   # target_variance_vector):
     """Runs one evaluation against the full epoch of data.
     Args:
@@ -159,8 +133,12 @@ def do_evaluation(sess,
       feed_dict = fill_feed_dict(data_set,
                              images_placeholder,
                              labels_placeholder,
-                             feed_with_batch=True)
+                             feed_with_batch=True,
+                             standardize_targets=standardize_targets)
       prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
+      if standardize_targets: # if true, convert back to original scale
+	prediction = prediction * data_set.targets_std + data_set.targets_mean
+	target = target * data_set.targets_std + data_set.targets_mean
       #accum_squared_errors += batch_squared_errors
       init = step * batch_size
       end = (step + 1) * batch_size
@@ -244,7 +222,8 @@ def run_training():
 
     #train_targets_variance = np.var(data_sets.train.labels, axis=0)
     #(X- np.mean(X, axis=0)) / np.std(X,axis=0) #Guardar la media y el std para volver a los valores originales
-    #test_targets_variance = np.var(data_sets.test.labels, axis=0)
+    
+    standardize_targets = True
     # Add to the Graph the Ops for loss calculation.
     loss = model.loss(outputs, labels_placeholder)
 
@@ -284,7 +263,8 @@ def run_training():
       feed_dict = fill_feed_dict(data_sets.train,
                                  images_placeholder,
                                  labels_placeholder,
-                                 True)
+                                 True,
+				 standardize_targets=standardize_targets)
 
       # Run one step of the model.  The return values are the activations
       # from the `train_op` (which is discarded) and the `loss` Op.  To
@@ -317,7 +297,8 @@ def run_training():
                 images_placeholder,
                 labels_placeholder,
                 data_sets.train,
-		intrinsic_matrix)
+		intrinsic_matrix,
+                standardize_targets)
 	# FIXME renombrar vbles y crear un metodo para agregar un unico escalar a tensorboard
 	add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
@@ -339,7 +320,8 @@ def run_training():
                 images_placeholder,
                 labels_placeholder,
                 data_sets.test,
-		intrinsic_matrix)
+		intrinsic_matrix,
+                standardize_targets)
 	add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
         add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
         add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)

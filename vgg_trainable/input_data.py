@@ -55,6 +55,17 @@ class DataSet(object):
     self._labels = labels
     self._epochs_completed = 0
     self._index_in_epoch = 0
+    self._targets_mean = numpy.mean(labels, axis=0)
+    self._targets_std = numpy.std(labels, axis=0) 
+
+
+  @property
+  def targets_mean(self):
+    return self._targets_mean
+
+  @property
+  def targets_std(self):
+    return self._targets_std
 
   @property
   def images(self):
@@ -76,8 +87,10 @@ class DataSet(object):
   def epochs_completed(self):
     return self._epochs_completed
 
-  def next_batch(self, batch_size, fake_data=False, shuffle=True):
+  def next_batch(self, batch_size, fake_data=False, shuffle=True, standardize_targets=False):
     im, lb = self._next_batch(batch_size, fake_data, shuffle)
+    if standardize_targets:
+	lb = (lb - self._targets_mean) / self._targets_std
     return im * (1.0 / 255.0), lb
 
   def _next_batch(self, batch_size, fake_data, shuffle):
