@@ -165,20 +165,18 @@ def do_evaluation(sess,
 	curr_target_components = se3_to_components(curr_target_s3_matrix)
 	curr_squared_error = np.square(curr_pred_components-curr_target_components)
 	squared_errors += curr_squared_error
-	#prediction_matrix[i] = curr_pred_components
+	#prediction_matrix[index] = curr_pred_components
         target_matrix[index] = curr_target_components
 
+    print("---------------------------------------------------------")
+    print("Prediction")
+    print(current_prediction)
+    print("Target")
+    print(current_target)
     mean_squared_errors = squared_errors / num_examples
     rmse = np.sqrt(np.sum(squared_errors) / num_examples)
     target_variance = np.var(target_matrix, axis=0) # variance = std ** 2
     norm_mse = mean_squared_errors / target_variance
-    print("mse")
-    print(mean_squared_errors)
-    print("var")
-    print(target_variance)
-    print("norm_mse")
-    print(norm_mse)
-    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     return rmse, mean_squared_errors, norm_mse
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
