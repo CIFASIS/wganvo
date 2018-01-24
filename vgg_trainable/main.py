@@ -23,10 +23,6 @@ import argparse
 import os
 import sys
 import time
-
-#from debian.debtags import output
-from six.moves import xrange  # pylint: disable=redefined-builtin
-
 # Scipy
 from scipy import linalg
 
@@ -200,7 +196,8 @@ def run_training():
   """Train MNIST for a number of steps."""
   # Get the sets of images and labels for training, validation, and
   # test on MNIST.
-  data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data)
+  kfold = 5
+  data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data, kfold)
   intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
   # Tell TensorFlow that the model will be built into the default Graph.
   print("Learning rate: " + str(FLAGS.learning_rate))
