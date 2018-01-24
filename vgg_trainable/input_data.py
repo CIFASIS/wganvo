@@ -143,9 +143,9 @@ class DataSet(object):
 def get_list_of_subdirectories(data_dir):
     return [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item))]
 
-def read_data_sets(train_data_dir, test_data_dir, validation_data_dir, fake_data, kfold=None):
-    train_list_dir = get_list_of_subdirectories(train_data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
-    test_list_dir = get_list_of_subdirectories(test_data_dir)
+def read_data_sets(data_dir, kfold=None):
+    list_dir = get_list_of_subdirectories(data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
+    #test_list_dir = get_list_of_subdirectories(test_data_dir)
     #if validation_data_dir is not None:
     #    validation_list_dir = get_list_of_subdirectories(validation_data_dir)
     #    validation_images, validation_labels = _get_images_and_labels(validation_list_dir)
@@ -153,15 +153,15 @@ def read_data_sets(train_data_dir, test_data_dir, validation_data_dir, fake_data
     # FIXME obtener desde train data
     #    validation_images, validation_labels = _inputs(
     #        "/home/cremona/workspace/train/2014-05-06-12-54-54_stereo_centre_01")
-    train_images, train_labels, splits = _get_images_and_labels(train_list_dir, kfold=kfold)
-    test_images, test_labels, _ = _get_images_and_labels(test_list_dir)
+    return _get_images_and_labels(list_dir, kfold=kfold)
+    #test_images, test_labels, _ = _get_images_and_labels(test_list_dir)
 
 
     #test_images, test_labels = _inputs("/home/javo/Descargas/Backup/workspace/2014-05-06-13-17-51_stereo_centre_01")
-    train = DataSet(train_images, train_labels, fake_data=fake_data)
-    cross_validation_splits = splits #DataSet(validation_images, validation_labels, fake_data=fake_data)
-    test = DataSet(test_images, test_labels, fake_data=fake_data)
-    return Datasets(train=train, cross_validation_splits=cross_validation_splits, test=test)
+    #train = DataSet(train_images, train_labels, fake_data=fake_data)
+    #cross_validation_splits = splits #DataSet(validation_images, validation_labels, fake_data=fake_data)
+    #test = DataSet(test_images, test_labels, fake_data=fake_data)
+    #return Datasets(train=train, cross_validation_splits=cross_validation_splits, test=test)
 
 def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None):
     total_num_examples = 0

@@ -197,7 +197,9 @@ def run_training():
   # Get the sets of images and labels for training, validation, and
   # test on MNIST.
   kfold = 5
-  data_sets = input_data.read_data_sets(FLAGS.train_data_dir, FLAGS.test_data_dir, FLAGS.validation_data_dir, FLAGS.fake_data, kfold)
+  train_images, train_targets, splits = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+  test_images, test_targets, _ = input_data.read_data_sets(FLAGS.test_data_dir)
+
   intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
   # Tell TensorFlow that the model will be built into the default Graph.
   print("Learning rate: " + str(FLAGS.learning_rate))
@@ -243,83 +245,87 @@ def run_training():
     # Instantiate a SummaryWriter to output summaries and the Graph.
     summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
+    test_dataset = DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
     # And then after everything is built:
 
-    # Run the Op to initialize the variables.
-    sess.run(init)
+    # FIXME ver como loguear
+    
     total_start_time = time.time()
-
-    # Start the training loop.
-    for step in xrange(FLAGS.max_steps):
-      start_time = time.time()
-
-      # Fill a feed dictionary with the actual set of images and labels
-      # for this particular training step.
-      feed_dict = fill_feed_dict(data_sets.train,
+    for train_indexs, validation_indexs in splits:
+	print("**************** NEW FOLD *******************")
+	print("Train size: " + str(len(train_indexs)))
+	print("Validation size: " + str(len(validation_indexs))) 
+	train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
+	
+	# Run the Op to initialize the variables.
+	sess.run(init)
+	# Start the training loop.
+	for step in xrange(FLAGS.max_steps):
+		start_time = time.time()
+	        # Fill a feed dictionary with the actual set of images and labels
+	        # for this particular training step.
+		feed_dict = fill_feed_dict(train_dataset,
                                  images_placeholder,
                                  labels_placeholder,
                                  True,
 				 standardize_targets=standardize_targets)
-
-      # Run one step of the model.  The return values are the activations
-      # from the `train_op` (which is discarded) and the `loss` Op.  To
-      # inspect the values of your Ops or variables, you may include them
-      # in the list passed to sess.run() and the value tensors will be
-      # returned in the tuple from the call.
-      _, loss_value = sess.run([train_op, loss],
+		# Run one step of the model.  The return values are the activations
+		# from the `train_op` (which is discarded) and the `loss` Op.  To
+		# inspect the values of your Ops or variables, you may include them
+		# in the list passed to sess.run() and the value tensors will be
+		# returned in the tuple from the call.
+		_, loss_value = sess.run([train_op, loss],
                                feed_dict=feed_dict)
 
-      # Write the summaries and print an overview fairly often.
-      #print(step)
-
-      if step % 100 == 0:
-        duration = time.time() - start_time
-        # Print status to stdout.
-        print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
-        # Update the events file.
-        summary_str = sess.run(summary, feed_dict=feed_dict)
-        summary_writer.add_summary(summary_str, step)
-        summary_writer.flush()
-
-      # Save a checkpoint and evaluate the model periodically.
-      if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-        #checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
-        #saver.save(sess, checkpoint_file, global_step=step)
-        # Evaluate against the training set.
-        print('Training Data Eval:')
-        rmse, mse, norm_mse = do_evaluation(sess,
-                outputs,
-                images_placeholder,
-                labels_placeholder,
-                data_sets.train,
-		intrinsic_matrix,
-                standardize_targets)
-	# FIXME renombrar vbles y crear un metodo para agregar un unico escalar a tensorboard
-	add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
-        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
-        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
-        # Evaluate against the validation set.
-        #print('Validation Data Eval:')
-        #rmse, mse, norm_mse = do_evaluation(sess,
-        #        outputs,
-        #        images_placeholder,
-        #        labels_placeholder,
-        #        data_sets.validation,
-	#	intrinsic_matrix)
-        #add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
-        #add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
-        # Evaluate against the test set.
-        print('Test Data Eval:')
-        rmse, mse, norm_mse = do_evaluation(sess,
-                outputs,
-                images_placeholder,
-                labels_placeholder,
-                data_sets.test,
-		intrinsic_matrix,
-                standardize_targets)
-	add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
-        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
-        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
+		# Write the summaries and print an overview fairly often.
+		if step % 100 == 0:
+		        duration = time.time() - start_time
+		        # Print status to stdout.
+		        print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+		        # Update the events file.
+		        summary_str = sess.run(summary, feed_dict=feed_dict)
+		        summary_writer.add_summary(summary_str, step)
+		        summary_writer.flush()
+		# Save a checkpoint and evaluate the model periodically.
+		if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+			#checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
+			#saver.save(sess, checkpoint_file, global_step=step)
+			# Evaluate against the training set.
+			print('Training Data Eval:')
+			rmse, mse, norm_mse = do_evaluation(sess,
+                		outputs,
+		                images_placeholder,
+                		labels_placeholder,
+		                train_dataset,
+				intrinsic_matrix,
+		                standardize_targets)
+			add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
+		        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
+		        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
+		        # Evaluate against the validation set.
+		        print('Validation Data Eval:')
+		        rmse, mse, norm_mse = do_evaluation(sess,
+		                outputs,
+		                images_placeholder,
+		                labels_placeholder,
+		                DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data)
+				intrinsic_matrix,
+				standardize_targets)
+			add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
+		        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
+		        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
+		        # Evaluate against the test set.
+		        print('Test Data Eval:')
+		        rmse, mse, norm_mse = do_evaluation(sess,
+                			outputs,
+			                images_placeholder,
+			                labels_placeholder,
+			                data_sets.test,
+					intrinsic_matrix,
+			                standardize_targets)
+			add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
+		        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
+		        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
     total_duration = time.time() - total_start_time
     print('Total: %.3f sec' % (total_duration))
 
@@ -346,11 +352,11 @@ if __name__ == '__main__':
       help='Directory to put the test data.'
   )
 
-  parser.add_argument(
-      '--validation_data_dir',
-      type=str,
-      help='Directory to put the test data.'
-  )
+  #parser.add_argument(
+  #    '--validation_data_dir',
+  #    type=str,
+  #    help='Directory to put the test data.'
+  #)
 
   parser.add_argument(
       '--learning_rate',
