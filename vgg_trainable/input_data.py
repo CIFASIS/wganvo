@@ -206,14 +206,15 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
 		images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
 		images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
 		# Images from the same dir must be in the same fold. See GroupKFold from sklearn.
-		groups[iter] = group_number
+		if kfold is not None:
+			groups[iter] = group_number
 		iter += 1
     assert total_num_examples == iter
     im = images
     lb = numpy.array(labels, dtype=labels_dtype)
     splits = None
     if kfold is not None:
-	gkf = GroupKFold(n_splits=k_fold)
+	gkf = GroupKFold(n_splits=kfold)
 	splits = gkf.split(images, labels, groups = groups)
     return im, lb, splits
 

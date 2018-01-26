@@ -245,7 +245,7 @@ def run_training():
     # Instantiate a SummaryWriter to output summaries and the Graph.
     summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
-    test_dataset = DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
+    test_dataset = input_data.DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
     # And then after everything is built:
 
     # FIXME ver como loguear
@@ -255,7 +255,7 @@ def run_training():
 	print("**************** NEW FOLD *******************")
 	print("Train size: " + str(len(train_indexs)))
 	print("Validation size: " + str(len(validation_indexs))) 
-	train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
+	train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
 	
 	# Run the Op to initialize the variables.
 	sess.run(init)
@@ -308,7 +308,7 @@ def run_training():
 		                outputs,
 		                images_placeholder,
 		                labels_placeholder,
-		                DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data)
+		                input_data.DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data),
 				intrinsic_matrix,
 				standardize_targets)
 			add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
@@ -320,7 +320,7 @@ def run_training():
                 			outputs,
 			                images_placeholder,
 			                labels_placeholder,
-			                data_sets.test,
+			                test_dataset,
 					intrinsic_matrix,
 			                standardize_targets)
 			add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
