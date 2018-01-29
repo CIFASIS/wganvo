@@ -243,20 +243,24 @@ def run_training():
     sess = tf.Session()
 
     # Instantiate a SummaryWriter to output summaries and the Graph.
-    summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
+    #summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
     test_dataset = input_data.DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
     # And then after everything is built:
 
+    current_fold = 0
     # FIXME ver como loguear
     
     total_start_time = time.time()
     for train_indexs, validation_indexs in splits:
+	current_fold += 1
 	print("**************** NEW FOLD *******************")
 	print("Train size: " + str(len(train_indexs)))
 	print("Validation size: " + str(len(validation_indexs))) 
 	train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
-	
+	fwriter_str = "fold_" + str(current_fold)
+        # Instantiate a SummaryWriter to output summaries and the Graph.
+	summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.log_dir, fwriter_str), sess.graph)	
 	# Run the Op to initialize the variables.
 	sess.run(init)
 	# Start the training loop.
