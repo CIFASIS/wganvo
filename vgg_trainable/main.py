@@ -45,7 +45,7 @@ import numpy.matlib as matlib
 FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
-def placeholder_inputs(batch_size):
+def placeholder_inputs(batch_size, images_placeholder_name=None, targets_placeholder_name=None):
 	"""Generate placeholder variables to represent the input tensors.
 	These placeholders are used as inputs by the rest of the model building
 	code and will be fed from the downloaded data in the .run() loop, below.
@@ -58,9 +58,9 @@ def placeholder_inputs(batch_size):
 	# Note that the shapes of the placeholders match the shapes of the full
 	# image and label tensors, except the first dimension is now batch_size
 	# rather than the full size of the train or test data sets.
-	images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
+	images_placeholder = tf.placeholder(tf.float32, name=images_placeholder_name, shape=(batch_size,
                                                          input_data.IMAGE_HEIGHT, input_data.IMAGE_WIDTH, 2))
-	labels_placeholder = tf.placeholder(tf.float32, shape=(batch_size, input_data.LABELS_SIZE))
+	labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name, shape=(batch_size, input_data.LABELS_SIZE))
 	return images_placeholder, labels_placeholder
 
 
@@ -209,14 +209,16 @@ def run_training():
   with tf.Graph().as_default():
     # Generate placeholders for the images and labels.
     images_placeholder, labels_placeholder = placeholder_inputs(
-        FLAGS.batch_size)
+        FLAGS.batch_size, images_placeholder_name = "images_placeholder", targets_placeholder_name = "targets_placeholder")
 
     #train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
     #    data_sets.train.num_examples)
 
     # Build a Graph that computes predictions from the inference model.
     outputs = model.inference(images_placeholder)
-
+    
+    # Rename
+    outputs = tf.identity(outputs, name = "outputs")
     #train_targets_variance = np.var(data_sets.train.labels, axis=0)
     #(X- np.mean(X, axis=0)) / np.std(X,axis=0) #Guardar la media y el std para volver a los valores originales
     
@@ -292,8 +294,8 @@ def run_training():
 		        summary_writer.flush()
 		# Save a checkpoint and evaluate the model periodically.
 		if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-			#checkpoint_file = os.path.join(FLAGS.log_dir, 'model.ckpt')
-			#saver.save(sess, checkpoint_file, global_step=step)
+			checkpoint_file = os.path.join(FLAGS.log_dir, 'vgg-model')
+			saver.save(sess, checkpoint_file, global_step=step)
 			# Evaluate against the training set.
 			print('Training Data Eval:')
 			rmse, mse, norm_mse = do_evaluation(sess,
