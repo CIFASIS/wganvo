@@ -37,7 +37,7 @@ def inference(images):
   Returns:
     softmax_linear: Output tensor with the computed logits.
   """
-  v = vgg.Vgg19()
+  v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]))
   return v.build(images)
 
 

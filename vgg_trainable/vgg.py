@@ -11,7 +11,7 @@ class Vgg19:
     A trainable version VGG19.
     """
 
-    def __init__(self, vgg19_npy_path=None, trainable=True, dropout=0.5):
+    def __init__(self, width, height, vgg19_npy_path=None, trainable=True, dropout=0.5):
         if vgg19_npy_path is not None:
             self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
         else:
@@ -20,6 +20,8 @@ class Vgg19:
         self.var_dict = {}
         self.trainable = trainable
         self.dropout = dropout
+	self.width = width
+	self.height = height
 
     def build(self, images, train_mode=None):
         """
@@ -54,7 +56,7 @@ class Vgg19:
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
-        fc_in_size = 6144 # 6144 = ((W // (2 ** 5)) * (H // (2 ** 5))) * 512 (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
+        fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512 # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
         self.fc6 = self.fc_layer(self.pool5, fc_in_size, 4096, "fc6")
         self.relu6 = tf.nn.relu(self.fc6)
         if train_mode is not None:
@@ -76,6 +78,16 @@ class Vgg19:
         self.data_dict = None
         return self.fc8
 
+
+    def build_non_deep_nn(self, images):
+	self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1")
+        self.conv1_2 = self.conv_layer(self.conv1_1, 32, 32, "conv1_2")
+	self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+	fc_in_size = ((width // 2) * (heigth // 2)) * 32
+	print(fc_in_size)
+	self.fc = self.fc_layer(self.pool1, fc_in_size, 12, "fc")
+	return self.fc
+	
     def avg_pool(self, bottom, name):
         return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
