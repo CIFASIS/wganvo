@@ -83,9 +83,10 @@ class Vgg19:
 	self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 32, 32, "conv1_2")
 	self.pool1 = self.max_pool(self.conv1_2, 'pool1')
-	fc_in_size = ((width // 2) * (heigth // 2)) * 32
+	fc_in_size = ((self.width // 2) * (self.height // 2)) * 32
 	print(fc_in_size)
 	self.fc = self.fc_layer(self.pool1, fc_in_size, 12, "fc")
+	self.data_dict = None
 	return self.fc
 	
     def avg_pool(self, bottom, name):
