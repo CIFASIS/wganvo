@@ -64,7 +64,7 @@ def placeholder_inputs(batch_size, images_placeholder_name=None, targets_placeho
 	return images_placeholder, labels_placeholder
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, standardize_targets=False):
+def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batch_size=None, standardize_targets=False, fake_data=False):
   """Fills the feed_dict for training the given step or for evaluating the entire dataset.
   A feed_dict takes the form of:
   feed_dict = {
@@ -81,8 +81,10 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, stan
   # Create the feed_dict for the placeholders filled with the next
   # `batch size` examples.
   if(feed_with_batch):
-    images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
-                                                 FLAGS.fake_data,
+    if(batch_size is None):
+	raise ValueError("batch_size not specified")
+    images_feed, labels_feed = data_set.next_batch(batch_size,
+                                                 fake_data,
                                                  shuffle=True,
 						 standardize_targets=standardize_targets)
   # Create the feed_dict for the placeholders filled with the entire dataset
@@ -130,6 +132,7 @@ def do_evaluation(sess,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True,
+			     batch_size=FLAGS.batch_size,
                              standardize_targets=standardize_targets)
       prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
       if standardize_targets: # if true, convert back to original scale
@@ -274,6 +277,7 @@ def run_training():
                                  images_placeholder,
                                  labels_placeholder,
                                  True,
+				 batch_size=FLAGS.batch_size,
 				 standardize_targets=standardize_targets)
 		# Run one step of the model.  The return values are the activations
 		# from the `train_op` (which is discarded) and the `loss` Op.  To

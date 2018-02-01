@@ -1,27 +1,31 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 import sys, os, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
-from input_data import read_data_sets, Dataset
+from input_data import read_data_sets, DataSet
 from main import fill_feed_dict
 
 def test_model(model_name, data_dir):
     sess = tf.Session()
-    saver = tf.train.import_meta_graph(model_name + ".data")
-    saver.restore(sess, tf.train.latest_checkpoint('./'))  
+    saver = tf.train.import_meta_graph(model_name+".meta")
+    print(model_name)
+    saver.restore(sess, model_name)#tf.train.latest_checkpoint('./'))  
     graph = tf.get_default_graph()
     outputs = graph.get_tensor_by_name("outputs:0")
     targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0") 
-    images, targets = read_data_sets(data_dir)
-    feed_dict = fill_feed_dict(Dataset(images, targets, fake_data=False))
+    images, targets, _ = read_data_sets(data_dir)
+    feed_dict = fill_feed_dict(DataSet(images, targets, fake_data=False), images_placeholder, targets_placeholder, feed_with_batch=True,batch_size=100, standardize_targets=False)
     # es necesario correr images_placeholder???
     prediction_batch, target_batch, images = sess.run([outputs, targets_placeholder, images_placeholder], feed_dict=feed_dict)
-    i1 = images[0,...,0]
-    i2 = images[0,...,1]
+    i1 = images[0,...,0] * 255.
+    i2 = images[0,...,1] * 255.
+    print(i1)
+    print(i2)
     show_images([i1,i2], titles = ["frame 1", "frame 2"])
 
 def show_images(images, cols = 1, titles = None):
