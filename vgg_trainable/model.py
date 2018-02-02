@@ -172,7 +172,7 @@ def training(loss, learning_rate):
 
 
 def get_learning_rate(initial_learning_rate, global_step):
-    boundaries = [6000, 20000, 35000]
+    boundaries = [15000, 25000, 35000]
     values = [initial_learning_rate, initial_learning_rate / 10., initial_learning_rate / 100., initial_learning_rate / 1000.]
     return tf.train.piecewise_constant(global_step, boundaries, values)
 
