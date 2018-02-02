@@ -71,7 +71,7 @@ class Vgg19:
         elif self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
-        self.fc8 = self.fc_layer(self.relu7, 4096, 12, "fc8")
+        self.fc8 = self.fc_layer(self.relu7, 4096, 11, "fc8")
 
         #self.prob = tf.nn.softmax(self.fc8, name="prob")
 
