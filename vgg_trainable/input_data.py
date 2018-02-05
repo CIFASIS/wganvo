@@ -182,7 +182,7 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             idxs.append((src_idx, dst_idx))
             label = single_raw_label[DEFAULT_LABEL_KEY].reshape(LABELS_SIZE)
 	    # Ignore a constant component (= 1)
-	    label = np.delete(label, -2)
+	    label = numpy.delete(label, -2)
             labels.append(label)
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)

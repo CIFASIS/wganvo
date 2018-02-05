@@ -173,6 +173,8 @@ def do_evaluation(sess,
     print("---------------------------------------------------------")
     print("Prediction")
     print(current_prediction)
+    print("Prediction (closest [R|t])")
+    print(closest_curr_pred_s3_matrix)
     print("Target")
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
