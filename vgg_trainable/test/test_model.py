@@ -9,19 +9,26 @@ sys.path.insert(0,parentdir)
 from input_data import read_data_sets, DataSet
 from main import fill_feed_dict
 
-def test_model(model_name, data_dir):
+def test_model(model_name, intrinsic_matrix, data_dir):
     sess = tf.Session()
     saver = tf.train.import_meta_graph(model_name+".meta")
     print(model_name)
+    inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
     saver.restore(sess, model_name)#tf.train.latest_checkpoint('./'))  
     graph = tf.get_default_graph()
     outputs = graph.get_tensor_by_name("outputs:0")
     targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0") 
     images, targets, _ = read_data_sets(data_dir)
-    feed_dict = fill_feed_dict(DataSet(images, targets, fake_data=False), images_placeholder, targets_placeholder, feed_with_batch=True,batch_size=100, standardize_targets=False)
+    feed_dict = fill_feed_dict(DataSet(images, targets, fake_data=False), images_placeholder, targets_placeholder, feed_with_batch=True,batch_size=100,shuffle=False,standardize_targets=False)
     # es necesario correr images_placeholder???
     prediction_batch, target_batch, images = sess.run([outputs, targets_placeholder, images_placeholder], feed_dict=feed_dict)
+    for i in range(100):
+        prediction = prediction_batch[i]
+        target = target_batch[i]
+        print(prediction.reshape(3,4))
+        print(target.reshape(3,4))
+        
     i1 = images[0,...,0] * 255.
     i2 = images[0,...,1] * 255.
     print(i1)

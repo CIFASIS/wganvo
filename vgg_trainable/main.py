@@ -64,7 +64,7 @@ def placeholder_inputs(batch_size, targets_dim, images_placeholder_name=None, ta
 	return images_placeholder, labels_placeholder
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batch_size=None, standardize_targets=False, fake_data=False):
+def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batch_size=None, shuffle=True, standardize_targets=False, fake_data=False):
   """Fills the feed_dict for training the given step or for evaluating the entire dataset.
   A feed_dict takes the form of:
   feed_dict = {
@@ -85,7 +85,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batc
 	raise ValueError("batch_size not specified")
     images_feed, labels_feed = data_set.next_batch(batch_size,
                                                  fake_data,
-                                                 shuffle=True,
+                                                 shuffle=shuffle,
 						 standardize_targets=standardize_targets)
   # Create the feed_dict for the placeholders filled with the entire dataset
   else:
