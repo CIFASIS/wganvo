@@ -27,78 +27,59 @@ def test_model(model_name, intrinsic_matrix, data_dir):
     dataset = DataSet(images, targets, fake_data=False)
     steps_per_epoch = dataset.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
-    predicted_trajectory = np.empty((num_examples + 1, 3))
-    target_trajectory = np.empty((num_examples + 1 ,3))
-    pred_current_xyz = np.matrix([0.,0.,0.,1.]).transpose()
-    target_current_xyz = np.matrix([0.,0.,0.,1.]).transpose()
-    predicted_trajectory[0] = pred_current_xyz[0:3].transpose()
-    target_trajectory[0] = target_current_xyz[0:3].transpose()
+    relative_poses_prediction = np.empty((num_examples, 12))
+    relative_poses_target = np.empty((num_examples, 12))
     for step in xrange(steps_per_epoch):
-	print(step)
-	feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True, batch_size=batch_size, shuffle=False, standardize_targets=True)
-	prediction_batch, target_batch, images = sess.run([outputs, targets_placeholder, images_placeholder], feed_dict=feed_dict)
-        batch_pred_trajectory, batch_target_trajectory = get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_batch, target_batch, pred_current_xyz, target_current_xyz)
-	init = batch_size * step + 1
-	end = batch_size * (step + 1) + 1
-        predicted_trajectory[init:end] = batch_pred_trajectory
-	target_trajectory[init:end] = batch_target_trajectory
-	pred_current_xyz = np.matrix([0.,0.,0.,1.])
-	pred_current_xyz[:,0:3] = batch_pred_trajectory[-1]
-	pred_current_xyz = pred_current_xyz.transpose()
-	target_current_xyz = np.matrix([0.,0.,0.,1.])
-	target_current_xyz[:,0:3] = batch_target_trajectory[-1]
-	target_current_xyz = target_current_xyz.transpose()
-	#print(pred_current_xyz)
-	#print(batch_pred_trajectory)
-	#print(target_current_xyz)
-    np.savetxt("prediction.txt", predicted_trajectory, delimiter=' ', fmt='%1.6f')
-    np.savetxt("target.txt", target_trajectory, delimiter=' ', fmt='%1.6f')
+		feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True, batch_size=batch_size, shuffle=False, standardize_targets=True)
+		prediction_batch, target_batch, images = sess.run([outputs, targets_placeholder, images_placeholder], feed_dict=feed_dict)
+		batch_relative_poses_pred, batch_relative_poses_target = get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_batch, target_batch)
+		init = batch_size * step
+		end = batch_size * (step + 1)
+		relative_poses_prediction[init:end] = batch_relative_poses_pred
+		relative_poses_target[init:end] = batch_relative_poses_target
+    np.savetxt("relative_poses_prediction.txt", relative_poses_prediction, delimiter=' ')
+    np.savetxt("relative_poses_target.txt", relative_poses_target, delimiter=' ')
+	absolute_poses_prediction = get_absolute_poses(relative_poses_prediction.reshape((num_examples,3,4)))
+	absolute_poses_target = get_absolute_poses(relative_poses_target.reshape((num_examples,3,4)))
+    np.savetxt("absolute_poses_prediction.txt", absolute_poses_prediction, delimiter=' ')
+    np.savetxt("absolute_poses_target.txt", absolute_poses_target, delimiter=' ')
 
 
+def get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_batch, target_batch):
+    poses_prediction = np.empty((batch_size, 12))
+    poses_target = np.empty((batch_size,12))
+    for i in xrange(batch_size):
+		prediction = prediction_batch[i]
+		# Original scale
+		prediction = prediction * dataset.targets_std + dataset.targets_mean
+		# 
+		prediction = np.insert(prediction, -1, 1.)
+		prediction = prediction.reshape(3,4)
+		pred_transformation = inverse_intrinsic_matrix * prediction
+		u,_ = linalg.polar(pred_transformation[0:3,0:3])
+		pred_transf_correction = np.empty((3,4))
+		pred_transf_correction[0:3, 0:3] = u
+		pred_transf_correction[0:3, 3] = pred_transformation[0:3,3]
 
-def get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_batch, target_batch, pred_current_xyz, target_current_xyz):
-    #pred_current_xyz = np.matrix([0.,0.,0.,1.]).transpose()
-    #target_current_xyz = np.matrix([0.,0.,0.,1.]).transpose()
-    predicted_trajectory = np.empty((batch_size, 3))
-    #predicted_trajectory[0] = pred_current_xyz[0:3].transpose()
-    target_trajectory = np.empty((batch_size,3))
-    inv = False
-    #target_trajectory[0] = target_current_xyz[0:3].transpose()
-    for i in range(batch_size):
-	#print("--------------------------------------------------------------------------------------")
-        prediction = prediction_batch[i]
-	prediction = prediction * dataset.targets_std + dataset.targets_mean
-	prediction = np.insert(prediction, -1, 1.)
-	prediction = prediction.reshape(3,4)
-	pred_transformation = inverse_intrinsic_matrix * prediction
-	u,_ = linalg.polar(pred_transformation[0:3,0:3])
-	pred_transf_correction = np.matlib.identity(4)
-	pred_transf_correction[0:3, 0:3] = u
-	pred_transf_correction[0:3, 3] = pred_transformation[0:3,3]
-	#pred_transf_correction = pred_transf_correction[0:3,:]
-	if inv:
-		pred_transf_correction = np.linalg.inv(pred_transf_correction)
-	pred_current_xyz = pred_transf_correction * pred_current_xyz
-	predicted_trajectory[i] = pred_current_xyz[0:3].transpose()
-        target = target_batch[i]
-	target = target * dataset.targets_std + dataset.targets_mean
-	target = np.insert(target, -1, 1.)
-	target = target.reshape(3,4)
-        temp_target_transformation = inverse_intrinsic_matrix * target
-	target_transformation = np.matlib.identity(4)
-	target_transformation[0:3,:] = temp_target_transformation
-	if inv:
-		target_transformation = np.linalg.inv(target_transformation)
-	target_current_xyz = target_transformation * target_current_xyz
-	target_trajectory[i] = target_current_xyz[0:3].transpose()
-	print("PREDICTION")
-        print(pred_transformation)
-	print("CORRECTED [R|t]")
-	print(pred_transf_correction[0:3,:])
-	print("TARGET [R|t]")
-        print(target_transformation)
-	
-    return predicted_trajectory, target_trajectory
+		target = target_batch[i]
+		target = target * dataset.targets_std + dataset.targets_mean
+		target = np.insert(target, -1, 1.)
+		target = target.reshape(3,4)
+		target_transformation = inverse_intrinsic_matrix * target
+		
+		poses_prediction[i] = pred_transf_correction.reshape(12)
+		poses_target[i] = target_transformation.reshape(12)
+    return poses_prediction, poses_target
+
+
+def get_absolute_poses(relative_poses):
+	current = np.matrix(np.identity(4))
+	num_examples = relative_poses.shape[0]
+	absolute_poses = np.empty(shape=relative_poses.shape)
+	for i in xrange(num_examples):
+		current = current * relative_poses[i]
+		absolute_poses[i] = current
+	return absolute_poses
 
 def show_images(images, cols = 1, titles = None):
     """Display a list of images in a single figure with matplotlib.
