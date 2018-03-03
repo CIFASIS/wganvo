@@ -270,8 +270,9 @@ def run_training():
 	print("Validation size: " + str(len(validation_indexs))) 
 	train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
 	fwriter_str = "fold_" + str(current_fold)
+        curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
         # Instantiate a SummaryWriter to output summaries and the Graph.
-	summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.log_dir, fwriter_str), sess.graph)	
+	summary_writer = tf.summary.FileWriter(curr_fold_log_path, sess.graph)	
 	# Run the Op to initialize the variables.
 	sess.run(init)
 	# Start the training loop.
@@ -304,7 +305,7 @@ def run_training():
 		        summary_writer.flush()
 		# Save a checkpoint and evaluate the model periodically.
 		if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-			checkpoint_file = os.path.join(FLAGS.log_dir, 'vgg-model')
+			checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
 			saver.save(sess, checkpoint_file, global_step=step)
 			# Evaluate against the training set.
 			print('Training Data Eval:')
