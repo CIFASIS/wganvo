@@ -45,7 +45,7 @@ import numpy.matlib as matlib
 FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
-def placeholder_inputs(batch_size, targets_dim, images_placeholder_name=None, targets_placeholder_name=None):
+def placeholder_inputs(batch_size, images_placeholder_name=None, targets_placeholder_name=None):
 	"""Generate placeholder variables to represent the input tensors.
 	These placeholders are used as inputs by the rest of the model building
 	code and will be fed from the downloaded data in the .run() loop, below.
@@ -60,7 +60,7 @@ def placeholder_inputs(batch_size, targets_dim, images_placeholder_name=None, ta
 	# rather than the full size of the train or test data sets.
 	images_placeholder = tf.placeholder(tf.float32, name=images_placeholder_name, shape=(batch_size,
                                                          input_data.IMAGE_HEIGHT, input_data.IMAGE_WIDTH, 2))
-	labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name, shape=(batch_size, targets_dim))
+	labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name, shape=(batch_size, input_data.LABELS_SIZE))
 	return images_placeholder, labels_placeholder
 
 
@@ -122,7 +122,9 @@ def do_evaluation(sess,
     batch_size = FLAGS.batch_size
     steps_per_epoch = data_set.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
+    #prediction_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
     target_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
+    #accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     squared_errors = np.zeros(components_vector_size, dtype="float32")
     inv_k_matrix = np.linalg.inv(k_matrix)
     for step in xrange(steps_per_epoch):
@@ -144,15 +146,10 @@ def do_evaluation(sess,
       for i in xrange(batch_size):
 	assert init+i < end
 	index = init+i
-	# Add the component we've discarded previously (= 1)
-	current_prediction = prediction[i]
-	current_prediction = np.insert(current_prediction, -1, 1.)
-	current_prediction = current_prediction.reshape(rows_reshape,columns_reshape)
-	current_target = target[i]
-	current_target = np.insert(current_target, -1, 1.)
-	current_target = current_target.reshape(rows_reshape,columns_reshape)
+	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
 	# P = K * [R|t] => [R|t] = K^(-1) * P
 	curr_pred_transform_matrix = inv_k_matrix * current_prediction
+	current_target = target[i].reshape(rows_reshape,columns_reshape)
 	curr_target_transform_matrix = inv_k_matrix * current_target
 	# Get the closest rotation matrix
 	u,_ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
@@ -215,10 +212,9 @@ def run_training():
   print("Batch size: " + str(FLAGS.batch_size))
   print(FLAGS)
   with tf.Graph().as_default():
-    # Generate placeholders for the images and targets.
-    targets_dim = input_data.LABELS_SIZE - 1 # Ignoro la penultima componente de la matriz, es una constante
+    # Generate placeholders for the images and labels.
     images_placeholder, labels_placeholder = placeholder_inputs(
-        FLAGS.batch_size, targets_dim, images_placeholder_name = "images_placeholder", targets_placeholder_name = "targets_placeholder")
+        FLAGS.batch_size, images_placeholder_name = "images_placeholder", targets_placeholder_name = "targets_placeholder")
 
     #train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
     #    data_sets.train.num_examples)

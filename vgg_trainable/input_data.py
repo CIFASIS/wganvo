@@ -181,8 +181,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             dst_idx = single_raw_label['dst_idx']
             idxs.append((src_idx, dst_idx))
             label = single_raw_label[DEFAULT_LABEL_KEY].reshape(LABELS_SIZE)
-	    # Ignore a constant component (= 1)
-	    label = numpy.delete(label, -2)
             labels.append(label)
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)
@@ -220,3 +218,28 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
 	splits = gkf.split(images, labels, groups = groups)
     return im, lb, splits
 
+# TODO delete
+def _inputs(dir):
+    main_key = 'arr_0'
+    images_filename = os.path.join(dir,"images.npz")
+    labels_filename = os.path.join(dir,"p.npz")
+    dataset = numpy.load(images_filename)[main_key]
+    raw_labels = numpy.load(labels_filename)[main_key]
+    num_examples = raw_labels.size
+    images = numpy.empty((num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
+    #images = []
+    labels = []
+    for i in range(num_examples):
+        single_raw_label = raw_labels[i]
+        src_idx = single_raw_label['src_idx']
+        dst_idx = single_raw_label['dst_idx']
+        label = single_raw_label['P'].reshape(LABELS_SIZE)
+        labels.append(label)
+        frame_1 = dataset[src_idx]
+        frame_2 = dataset[dst_idx]
+        images[i,...,0] = frame_1
+        images[i,...,1] = frame_2
+        #images.append((frame_1, frame_2))
+    #print images.dtype, images.dtype
+    ### images,
+    return images, numpy.array(labels)
