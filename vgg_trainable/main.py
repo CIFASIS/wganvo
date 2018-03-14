@@ -103,6 +103,7 @@ def do_evaluation(sess,
             images_placeholder,
             labels_placeholder,
             data_set,
+            batch_size,
 	    k_matrix,
             standardize_targets):
 	   # target_variance_vector):
@@ -119,7 +120,7 @@ def do_evaluation(sess,
     columns_reshape = 4
     components_vector_size = 6
     evaluation = tf.square(tf.subtract(outputs, labels_placeholder))
-    batch_size = FLAGS.batch_size
+    #batch_size = FLAGS.batch_size
     steps_per_epoch = data_set.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
     #prediction_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
@@ -132,7 +133,7 @@ def do_evaluation(sess,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True,
-			     batch_size=FLAGS.batch_size,
+			     batch_size=batch_size,
                              standardize_targets=standardize_targets)
       prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
       if standardize_targets: # if true, convert back to original scale
@@ -310,6 +311,7 @@ def run_training():
 		                images_placeholder,
                 		labels_placeholder,
 		                train_dataset,
+                                FLAGS.batch_size,
 				intrinsic_matrix,
 		                standardize_targets)
 			add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
@@ -322,6 +324,7 @@ def run_training():
 		                images_placeholder,
 		                labels_placeholder,
 		                input_data.DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data),
+                                FLAGS.batch_size,
 				intrinsic_matrix,
 				standardize_targets)
 			add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
@@ -334,6 +337,7 @@ def run_training():
 			                images_placeholder,
 			                labels_placeholder,
 			                test_dataset,
+                                        FLAGS.batch_size,
 					intrinsic_matrix,
 			                standardize_targets)
 			add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
