@@ -243,3 +243,6 @@ def _inputs(dir):
     #print images.dtype, images.dtype
     ### images,
     return images, numpy.array(labels)
+
+if __name__ == '__main__':
+    pass
