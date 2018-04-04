@@ -244,9 +244,6 @@ def run_training():
     # Add the variable initializer Op.
     init = tf.global_variables_initializer()
 
-    # Create a saver for writing training checkpoints.
-    saver = tf.train.Saver()
-
     # Create a session for running Ops on the Graph.
     sess = tf.Session()
 
@@ -261,6 +258,9 @@ def run_training():
     
     total_start_time = time.time()
     for train_indexs, validation_indexs in splits:
+        # Create a saver for writing training checkpoints.
+        saver = tf.train.Saver()
+
 	current_fold += 1
 	print("**************** NEW FOLD *******************")
 	print("Train size: " + str(len(train_indexs)))
