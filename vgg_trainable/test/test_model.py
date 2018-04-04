@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import linalg
 import argparse
 import sys, os, inspect
@@ -8,7 +7,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir)
 from input_data import read_data_sets, DataSet
-from main import fill_feed_dict
+from main import fill_feed_dict, do_evaluation
 
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
@@ -19,16 +18,17 @@ def test_model(model_name, intrinsic_matrix, data_dir):
 	inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
 	saver.restore(sess, model_name)#tf.train.latest_checkpoint('./'))  
 	graph = tf.get_default_graph()
+        batch_size = 100
 	outputs = graph.get_tensor_by_name("outputs:0")
 	targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
 	images_placeholder = graph.get_tensor_by_name("images_placeholder:0") 
-	batch_size = 100
 	images, targets, _ = read_data_sets(data_dir)
 	dataset = DataSet(images, targets, fake_data=False)
 	steps_per_epoch = dataset.num_examples // batch_size
 	num_examples = steps_per_epoch * batch_size
 	relative_poses_prediction = np.empty((num_examples, 12))
 	relative_poses_target = np.empty((num_examples, 12))
+#        rmse, mse, norm_mse = do_evaluation(sess,outputs,images_placeholder, targets_placeholder, dataset, batch_size, intrinsic_matrix, True)
 	for step in xrange(steps_per_epoch):
 		feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True, batch_size=batch_size, shuffle=False, standardize_targets=True)
 		prediction_batch, target_batch = sess.run([outputs, targets_placeholder], feed_dict=feed_dict)
@@ -37,6 +37,7 @@ def test_model(model_name, intrinsic_matrix, data_dir):
 		end = batch_size * (step + 1)
 		relative_poses_prediction[init:end] = batch_relative_poses_pred
 		relative_poses_target[init:end] = batch_relative_poses_target
+        
 	np.savetxt("relative_poses_prediction.txt", relative_poses_prediction, delimiter=' ')
 	np.savetxt("relative_poses_target.txt", relative_poses_target, delimiter=' ')
 	absolute_poses_prediction = get_absolute_poses(relative_poses_prediction.reshape((num_examples,3,4)))
@@ -52,22 +53,20 @@ def get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_b
 		prediction = prediction_batch[i]
 		# Original scale
 		prediction = prediction * dataset.targets_std + dataset.targets_mean
-		# 
-		prediction = np.insert(prediction, -1, 1.)
+		                	
 		prediction = prediction.reshape(3,4)
 		pred_transformation = inverse_intrinsic_matrix * prediction
 		u,_ = linalg.polar(pred_transformation[0:3,0:3])
 		pred_transf_correction = np.empty((3,4))
 		pred_transf_correction[0:3, 0:3] = u
 		pred_transf_correction[0:3, 3] = pred_transformation[0:3,3].transpose()
-
+                                
 		target = target_batch[i]
 		target = target * dataset.targets_std + dataset.targets_mean
-		target = np.insert(target, -1, 1.)
 		target = target.reshape(3,4)
 		target_transformation = inverse_intrinsic_matrix * target
-		
-		poses_prediction[i] = pred_transf_correction.reshape(12)
+                
+                poses_prediction[i] = pred_transf_correction.reshape(12)
 		poses_target[i] = target_transformation.reshape(12)
     return poses_prediction, poses_target
 
@@ -82,33 +81,6 @@ def get_absolute_poses(relative_poses):
 		current = current * np.linalg.inv(T)
 		absolute_poses[i] = current[0:3,:]
 	return absolute_poses
-
-def show_images(images, cols = 1, titles = None):
-    """Display a list of images in a single figure with matplotlib.
-    
-    Parameters
-    ---------
-    images: List of np.arrays compatible with plt.imshow.
-    
-    cols (Default = 1): Number of columns in figure (number of rows is 
-                        set to np.ceil(n_images/float(cols))).
-    
-    titles: List of titles corresponding to each image. Must have
-            the same length as titles.
-    """
-    assert((titles is None)or (len(images) == len(titles)))
-    n_images = len(images)
-    if titles is None: titles = ['Image (%d)' % i for i in range(1,n_images + 1)]
-    fig = plt.figure()
-    for n, (image, title) in enumerate(zip(images, titles)):
-        a = fig.add_subplot(cols, np.ceil(n_images/float(cols)), n + 1)
-        if image.ndim == 2:
-            plt.gray()
-        plt.imshow(image)
-        a.set_title(title)
-    fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
-    plt.show()
-
 
 def main(_):
     intrinsic_matrix = np.matrix(np.loadtxt(FLAGS.intrinsics_path, delimiter=' '))
