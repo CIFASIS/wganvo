@@ -6,6 +6,9 @@ import numpy as np
 
 def save(name, array, fmt='%1.6f'):
     np.savetxt(name + '.txt', array, delimiter=' ', fmt=fmt)
+
+def load(name):
+    return np.loadtxt(name, delimiter=' ')
     
 def save_as_list(name, array, fmt='%1.6f'):
     np.savetxt(name + '.txt', array.ravel(), delimiter=' ', fmt=fmt)

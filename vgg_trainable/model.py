@@ -37,13 +37,16 @@ def inference(images):
   Returns:
     softmax_linear: Output tensor with the computed logits.
   """
-  v = vgg.Vgg19()
+  v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]))
+  #return v.build_non_deep_nn(images)
   return v.build(images)
 
 
+# FIXME revisar
+def rmse(outputs, targets):
+  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
 
-
-def loss(output, target):
+def loss(outputs, targets):
   """Calculates the loss from the logits and the labels.
   Args:
     output:
@@ -51,10 +54,7 @@ def loss(output, target):
   Returns:
     loss: Loss tensor of type float.
   """
-  return rmse(output, target)
-
-
-
+  return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 def loss_(logits, labels):
   components = tf.Variable([])
@@ -135,8 +135,8 @@ def so3_to_euler(so3):
 def euclidean_distance(a, b):
   return tf.sqrt(tf.reduce_sum(squared_error(a, b)))
 
-def rmse(outputs, targets):
-  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
+def mse_norm(outputs, targets, variance):
+  return tf.reduce_mean(tf.reduce_mean(squared_error(outputs, targets), axis=0) / variance)
 
 def squared_error(a, b):
     return tf.square(tf.subtract(a, b))
