@@ -91,7 +91,7 @@ class DataSet(object):
   def next_batch(self, batch_size, fake_data=False, shuffle=True, standardize_targets=False):
     im, lb = self._next_batch(batch_size, fake_data, shuffle)
     if standardize_targets:
-	lb = (lb - self._targets_mean) / self._targets_std
+        lb = (lb - self._targets_mean) / self._targets_std
     return im * (1.0 / 255.0), lb
 
   def _next_batch(self, batch_size, fake_data, shuffle):
@@ -190,32 +190,32 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
     # Process images
     images = numpy.empty((total_num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
     if kfold is not None:
-	groups = numpy.empty(total_num_examples)
-	group_idx = 0
+        groups = numpy.empty(total_num_examples)
+        group_idx = 0
     iter = 0
     for dir in list_of_subdir:
         images_filename = os.path.join(dir, "images.npz")
         dataset = numpy.load(images_filename)[DEFAULT_MAIN_KEY]
         assert dataset.dtype == images_dtype
         if dir not in frames_idx_map:
-		raise ValueError(dir + " directory")
-	if kfold is not None:
-		group_number = (group_idx % kfold)
-		group_idx += 1
+                raise ValueError(dir + " directory")
+        if kfold is not None:
+                group_number = (group_idx % kfold)
+                group_idx += 1
         for (src_idx, dst_idx) in frames_idx_map[dir]:
-		images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
-		images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
-		# Images from the same dir must be in the same fold. See GroupKFold from sklearn.
-		if kfold is not None:
-			groups[iter] = group_number
-		iter += 1
+                images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
+                images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
+                # Images from the same dir must be in the same fold. See GroupKFold from sklearn.
+                if kfold is not None:
+                        groups[iter] = group_number
+                iter += 1
     assert total_num_examples == iter
     im = images
     lb = numpy.array(labels, dtype=labels_dtype)
     splits = None
     if kfold is not None:
-	gkf = GroupKFold(n_splits=kfold)
-	splits = gkf.split(images, labels, groups = groups)
+        gkf = GroupKFold(n_splits=kfold)
+        splits = gkf.split(images, labels, groups = groups)
     return im, lb, splits
 
 # TODO delete
