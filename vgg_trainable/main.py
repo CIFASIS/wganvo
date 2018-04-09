@@ -46,22 +46,22 @@ FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
 def placeholder_inputs(batch_size, images_placeholder_name=None, targets_placeholder_name=None):
-	"""Generate placeholder variables to represent the input tensors.
-	These placeholders are used as inputs by the rest of the model building
-	code and will be fed from the downloaded data in the .run() loop, below.
-	Args:
-		batch_size: The batch size will be baked into both placeholders.
-	Returns:
-		images_placeholder: Images placeholder.
-		labels_placeholder: Labels placeholder.
-	"""
-	# Note that the shapes of the placeholders match the shapes of the full
-	# image and label tensors, except the first dimension is now batch_size
-	# rather than the full size of the train or test data sets.
-	images_placeholder = tf.placeholder(tf.float32, name=images_placeholder_name, shape=(batch_size,
+        """Generate placeholder variables to represent the input tensors.
+        These placeholders are used as inputs by the rest of the model building
+        code and will be fed from the downloaded data in the .run() loop, below.
+        Args:
+                batch_size: The batch size will be baked into both placeholders.
+        Returns:
+                images_placeholder: Images placeholder.
+                labels_placeholder: Labels placeholder.
+        """
+        # Note that the shapes of the placeholders match the shapes of the full
+        # image and label tensors, except the first dimension is now batch_size
+        # rather than the full size of the train or test data sets.
+        images_placeholder = tf.placeholder(tf.float32, name=images_placeholder_name, shape=(batch_size,
                                                          input_data.IMAGE_HEIGHT, input_data.IMAGE_WIDTH, 2))
-	labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name, shape=(batch_size, input_data.LABELS_SIZE))
-	return images_placeholder, labels_placeholder
+        labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name, shape=(batch_size, input_data.LABELS_SIZE))
+        return images_placeholder, labels_placeholder
 
 
 def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batch_size=None, shuffle=True, standardize_targets=False, fake_data=False):
@@ -82,11 +82,11 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch = False, batc
   # `batch size` examples.
   if(feed_with_batch):
     if(batch_size is None):
-	raise ValueError("batch_size not specified")
+        raise ValueError("batch_size not specified")
     images_feed, labels_feed = data_set.next_batch(batch_size,
                                                  fake_data,
                                                  shuffle=shuffle,
-						 standardize_targets=standardize_targets)
+                                                 standardize_targets=standardize_targets)
   # Create the feed_dict for the placeholders filled with the entire dataset
   else:
     images_feed = data_set.images
@@ -104,9 +104,9 @@ def do_evaluation(sess,
             labels_placeholder,
             data_set,
             batch_size,
-	    k_matrix,
+            k_matrix,
             standardize_targets):
-	   # target_variance_vector):
+           # target_variance_vector):
     """Runs one evaluation against the full epoch of data.
     Args:
         sess: The session in which the model has been trained.
@@ -133,39 +133,39 @@ def do_evaluation(sess,
                              images_placeholder,
                              labels_placeholder,
                              feed_with_batch=True,
-			     batch_size=batch_size,
+                             batch_size=batch_size,
                              standardize_targets=standardize_targets)
       prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
       if standardize_targets: # if true, convert back to original scale
-	prediction = prediction * data_set.targets_std + data_set.targets_mean
-	target = target * data_set.targets_std + data_set.targets_mean
+        prediction = prediction * data_set.targets_std + data_set.targets_mean
+        target = target * data_set.targets_std + data_set.targets_mean
       #accum_squared_errors += batch_squared_errors
       init = step * batch_size
       end = (step + 1) * batch_size
       #prediction_matrix[init:end] = prediction
       #target_matrix[init:end] = target
       for i in xrange(batch_size):
-	assert init+i < end
-	index = init+i
-	current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
-	# P = K * [R|t] => [R|t] = K^(-1) * P
-	curr_pred_transform_matrix = inv_k_matrix * current_prediction
-	current_target = target[i].reshape(rows_reshape,columns_reshape)
-	curr_target_transform_matrix = inv_k_matrix * current_target
-	# Get the closest rotation matrix
-	u,_ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
-	# Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
-	closest_curr_pred_s3_matrix = matlib.identity(4)
-	closest_curr_pred_s3_matrix[0:3, 0:3] = u
-	closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3,3]
-	curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0,0,0,1]]], axis=0)
-	# From [R|t] matrix to components
-	# components = [x,y,z, roll, pitch, yaw]
-	curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
-	curr_target_components = se3_to_components(curr_target_s3_matrix)
-	curr_squared_error = np.square(curr_pred_components-curr_target_components)
-	squared_errors += curr_squared_error
-	#prediction_matrix[index] = curr_pred_components
+        assert init+i < end
+        index = init+i
+        current_prediction = prediction[i].reshape(rows_reshape,columns_reshape)
+        # P = K * [R|t] => [R|t] = K^(-1) * P
+        curr_pred_transform_matrix = inv_k_matrix * current_prediction
+        current_target = target[i].reshape(rows_reshape,columns_reshape)
+        curr_target_transform_matrix = inv_k_matrix * current_target
+        # Get the closest rotation matrix
+        u,_ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
+        # Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
+        closest_curr_pred_s3_matrix = matlib.identity(4)
+        closest_curr_pred_s3_matrix[0:3, 0:3] = u
+        closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3,3]
+        curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0,0,0,1]]], axis=0)
+        # From [R|t] matrix to components
+        # components = [x,y,z, roll, pitch, yaw]
+        curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
+        curr_target_components = se3_to_components(curr_target_s3_matrix)
+        curr_squared_error = np.square(curr_pred_components-curr_target_components)
+        squared_errors += curr_squared_error
+        #prediction_matrix[index] = curr_pred_components
         target_matrix[index] = curr_target_components
 
     print("---------------------------------------------------------")
@@ -261,88 +261,88 @@ def run_training():
         # Create a saver for writing training checkpoints.
         saver = tf.train.Saver()
 
-	current_fold += 1
-	print("**************** NEW FOLD *******************")
-	print("Train size: " + str(len(train_indexs)))
-	print("Validation size: " + str(len(validation_indexs))) 
-	train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
-	fwriter_str = "fold_" + str(current_fold)
+        current_fold += 1
+        print("**************** NEW FOLD *******************")
+        print("Train size: " + str(len(train_indexs)))
+        print("Validation size: " + str(len(validation_indexs))) 
+        train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], fake_data=FLAGS.fake_data)
+        fwriter_str = "fold_" + str(current_fold)
         curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
         # Instantiate a SummaryWriter to output summaries and the Graph.
-	summary_writer = tf.summary.FileWriter(curr_fold_log_path, sess.graph)	
-	# Run the Op to initialize the variables.
-	sess.run(init)
-	# Start the training loop.
-	for step in xrange(FLAGS.max_steps):
-		start_time = time.time()
-	        # Fill a feed dictionary with the actual set of images and labels
-	        # for this particular training step.
-		feed_dict = fill_feed_dict(train_dataset,
+        summary_writer = tf.summary.FileWriter(curr_fold_log_path, sess.graph)  
+        # Run the Op to initialize the variables.
+        sess.run(init)
+        # Start the training loop.
+        for step in xrange(FLAGS.max_steps):
+                start_time = time.time()
+                # Fill a feed dictionary with the actual set of images and labels
+                # for this particular training step.
+                feed_dict = fill_feed_dict(train_dataset,
                                  images_placeholder,
                                  labels_placeholder,
                                  True,
-				 batch_size=FLAGS.batch_size,
-				 standardize_targets=standardize_targets)
-		# Run one step of the model.  The return values are the activations
-		# from the `train_op` (which is discarded) and the `loss` Op.  To
-		# inspect the values of your Ops or variables, you may include them
-		# in the list passed to sess.run() and the value tensors will be
-		# returned in the tuple from the call.
-		_, loss_value = sess.run([train_op, loss],
+                                 batch_size=FLAGS.batch_size,
+                                 standardize_targets=standardize_targets)
+                # Run one step of the model.  The return values are the activations
+                # from the `train_op` (which is discarded) and the `loss` Op.  To
+                # inspect the values of your Ops or variables, you may include them
+                # in the list passed to sess.run() and the value tensors will be
+                # returned in the tuple from the call.
+                _, loss_value = sess.run([train_op, loss],
                                feed_dict=feed_dict)
 
-		# Write the summaries and print an overview fairly often.
-		if step % 100 == 0:
-		        duration = time.time() - start_time
-		        # Print status to stdout.
-		        print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
-		        # Update the events file.
-		        summary_str = sess.run(summary, feed_dict=feed_dict)
-		        summary_writer.add_summary(summary_str, step)
-		        summary_writer.flush()
-		# Save a checkpoint and evaluate the model periodically.
-		if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-			checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
-			saver.save(sess, checkpoint_file, global_step=step)
-			# Evaluate against the training set.
-			print('Training Data Eval:')
-			rmse, mse, norm_mse = do_evaluation(sess,
-                		outputs,
-		                images_placeholder,
-                		labels_placeholder,
-		                train_dataset,
+                # Write the summaries and print an overview fairly often.
+                if step % 100 == 0:
+                        duration = time.time() - start_time
+                        # Print status to stdout.
+                        print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
+                        # Update the events file.
+                        summary_str = sess.run(summary, feed_dict=feed_dict)
+                        summary_writer.add_summary(summary_str, step)
+                        summary_writer.flush()
+                # Save a checkpoint and evaluate the model periodically.
+                if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+                        checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
+                        saver.save(sess, checkpoint_file, global_step=step)
+                        # Evaluate against the training set.
+                        print('Training Data Eval:')
+                        rmse, mse, norm_mse = do_evaluation(sess,
+                                outputs,
+                                images_placeholder,
+                                labels_placeholder,
+                                train_dataset,
                                 FLAGS.batch_size,
-				intrinsic_matrix,
-		                standardize_targets)
-			add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
-		        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
-		        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
-		        # Evaluate against the validation set.
-		        print('Validation Data Eval:')
-		        rmse, mse, norm_mse = do_evaluation(sess,
-		                outputs,
-		                images_placeholder,
-		                labels_placeholder,
-		                input_data.DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data),
+                                intrinsic_matrix,
+                                standardize_targets)
+                        add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
+                        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
+                        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
+                        # Evaluate against the validation set.
+                        print('Validation Data Eval:')
+                        rmse, mse, norm_mse = do_evaluation(sess,
+                                outputs,
+                                images_placeholder,
+                                labels_placeholder,
+                                input_data.DataSet(train_images[validation_indexs], train_targets[validation_indexs], fake_data=FLAGS.fake_data),
                                 FLAGS.batch_size,
-				intrinsic_matrix,
-				standardize_targets)
-			add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
-		        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
-		        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
-		        # Evaluate against the test set.
-		        print('Test Data Eval:')
-		        rmse, mse, norm_mse = do_evaluation(sess,
-                			outputs,
-			                images_placeholder,
-			                labels_placeholder,
-			                test_dataset,
+                                intrinsic_matrix,
+                                standardize_targets)
+                        add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
+                        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
+                        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
+                        # Evaluate against the test set.
+                        print('Test Data Eval:')
+                        rmse, mse, norm_mse = do_evaluation(sess,
+                                        outputs,
+                                        images_placeholder,
+                                        labels_placeholder,
+                                        test_dataset,
                                         FLAGS.batch_size,
-					intrinsic_matrix,
-			                standardize_targets)
-			add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
-		        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
-		        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
+                                        intrinsic_matrix,
+                                        standardize_targets)
+                        add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
+                        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
+                        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
     total_duration = time.time() - total_start_time
     print('Total: %.3f sec' % (total_duration))
 
