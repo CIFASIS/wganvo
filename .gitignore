@@ -105,6 +105,10 @@ nbproject/
 # Temporary Files
 *~
 
+
+.idea/
+
+
 # Generated Images
 *.jpg
 
