@@ -207,6 +207,10 @@ def run_training():
   test_images, test_targets, _ = input_data.read_data_sets(FLAGS.test_data_dir)
 
   intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
+  if FLAGS.test_intrinsics_dir:
+    test_intrinsic_matrix = np.matrix(load(FLAGS.test_intrinsics_dir))
+  else:
+    test_intrinsic_matrix = intrinsic_matrix
   # Tell TensorFlow that the model will be built into the default Graph.
   print("Learning rate: " + str(FLAGS.learning_rate))
   print("Steps: " + str(FLAGS.max_steps))
@@ -338,7 +342,7 @@ def run_training():
                                         labels_placeholder,
                                         test_dataset,
                                         FLAGS.batch_size,
-                                        intrinsic_matrix,
+                                        test_intrinsic_matrix,
                                         standardize_targets)
                         add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
                         add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
@@ -404,6 +408,11 @@ if __name__ == '__main__':
       '--intrinsics_dir',
       type=str,
       default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
+      help='Intrinsic matrix path'
+  )
+  parser.add_argument(
+      '--test_intrinsics_dir',
+      type=str,
       help='Intrinsic matrix path'
   )
   parser.add_argument(
