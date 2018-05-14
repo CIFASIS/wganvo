@@ -11,7 +11,7 @@ from array_utils import list_to_array, save
 
 _CAM2INDEX = {'cam0': 0, 'cam1': 1,'cam2': 2, 'cam3': 3}
 _CAM2FOLDER = {'cam0': 'image_0', 'cam1': 'image_1','cam2': 'image_2','cam3': 'image_3'}
-
+DEFAULT_CALIBRATION_FILENAME = 'calib.txt'
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='Play back images from a given directory')
@@ -25,6 +25,7 @@ def get_arguments():
     parser.add_argument('--scale', nargs=2, default=None, type=int, metavar=('WIDTH', 'HEIGHT'),
                         help='(optional) If supplied, images will be scaled to WIDTH x HEIGHT')
     parser.add_argument('--output_dir', type=str, default=None, help='(optional) Output directory')
+    parser.add_argument('--mirror', action='store_true', help='Flip the images (axis x)')
     # parser.add_argument('image_name', type=str, help='Image name.')
     args = parser.parse_args()
     return args
@@ -76,7 +77,8 @@ def calculate_transformation(pose_a, pose_b):
 
 def main():
     args = get_arguments()
-    DEFAULT_CALIBRATION_FILENAME = 'calib.txt'
+    is_mirror = args.mirror
+    print(args)
     if args.cam != "cam0":
         raise Exception("Only cam0 is supported")
     output_dir = os.curdir
@@ -94,14 +96,13 @@ def main():
         original_resolution = adapt_images.get_resolution(img)
         assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
         modified_img, _ = adapt_images.process_image(img, crop=args.crop, scale=args.scale)
-        assert isinstance(modified_img, np.ndarray) and modified_img.dtype == np.uint8 and modified_img.flags.contiguous
+        if is_mirror:
+            modified_img = np.fliplr(modified_img)
+        assert isinstance(modified_img, np.ndarray) and modified_img.dtype == np.uint8 #and modified_img.flags.contiguous
         images_list.append(modified_img)
     print(original_resolution)
     compressed_images = list_to_array(images_list)
-    save(os.path.join(output_dir, 'images_shape'), compressed_images.shape, fmt='%i')
     print compressed_images.shape
-    compressed_images_path = os.path.join(output_dir, 'images')
-    savez_compressed(compressed_images_path, compressed_images)
 
     t_records = []
     p_records = []
@@ -114,6 +115,10 @@ def main():
         new_intrinsic_matrix = build_intrinsic_matrix(new_focal_length, new_principal_point)
         poses = np.loadtxt(poses_file, delimiter=' ')
         assert len(images_filenames) == len(poses)
+        mirror = np.asmatrix(np.diag((-1, 1, 1)))
+        # In this case mirror = mirror^(-1)
+        mirror_inverse = mirror
+        transformations = []
         for idx_pose in xrange(poses.shape[0] - offset):
             dst_index = idx_pose
             src_index = idx_pose + offset
@@ -122,21 +127,26 @@ def main():
             src = vector_to_homogeneous(src_pose)
             dst = vector_to_homogeneous(dst_pose)
             transf_src_dst = calculate_transformation(src, dst)
+            if is_mirror:
+                transf_src_dst[0:3,0:3] = mirror_inverse * transf_src_dst[0:3,0:3] * mirror
             t_matrix = transf_src_dst[0:3, :]
             p_matrix = new_intrinsic_matrix * t_matrix
             t_records.append((t_matrix, src_index, dst_index))
             p_records.append((p_matrix, src_index, dst_index))
-            #aux.append(np.asarray(t_matrix).reshape(-1))
+            transformations.append(np.asarray(t_matrix).reshape(-1))
     transf = np.array(t_records, dtype=[('T', ('float32', (3, 4))), ('src_idx', 'int32'), ('dst_idx', 'int32')])
     proy = np.array(p_records, dtype=[('P', ('float32', (3, 4))), ('src_idx', 'int32'), ('dst_idx', 'int32')])
     savez_compressed(os.path.join(output_dir, 't'), transf)
     savez_compressed(os.path.join(output_dir, 'p'), proy)
     save(os.path.join(output_dir, "intrinsic_matrix"), new_intrinsic_matrix, fmt='%.18e')
     save(os.path.join(output_dir, "intrinsic_parameters"), [new_focal_length, new_principal_point], fmt='%.18e')
-    #ts = list_to_array(aux)
+    save(os.path.join(output_dir, 'images_shape'), compressed_images.shape, fmt='%i')
+    compressed_images_path = os.path.join(output_dir, 'images')
+    savez_compressed(compressed_images_path, compressed_images)
+    ts = list_to_array(transformations)
     #print(euler_from_matrix(transf_src_dst))
     #print(translation_from_matrix(transf_src_dst))
-    #save('/home/jcremona/mybo', ts, fmt='%.18e')
+    save(os.path.join(output_dir, 'transformations'), ts, fmt='%.18e')
 
 if __name__ == "__main__":
     main()

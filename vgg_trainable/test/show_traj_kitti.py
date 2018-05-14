@@ -37,7 +37,7 @@ def main():
     poses = np.loadtxt(FLAGS.poses, delimiter=" ")
     print(len(images))
     print(len(poses))
-    assert len(images)+1 == len(poses)
+    assert len(images) == len(poses)
     show(images[...,1], poses)
 
 
