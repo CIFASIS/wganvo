@@ -1,0 +1,2 @@
+#cat $1 | grep 'TRACKED_FRAME_POSE' | sed 's/ /,/g' | while read -r line; do arr=$(echo "$line" | sed 's/,/ /g'); arr=($arr); echo ${arr[@]:2:12}; done 
+cat $1 | grep 'TRACKED_FRAME_POSE' | while read -r line; do arr=($line); echo ${arr[@]:2:12}; done
