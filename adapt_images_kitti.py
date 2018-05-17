@@ -26,6 +26,8 @@ def get_arguments():
                         help='(optional) If supplied, images will be scaled to WIDTH x HEIGHT')
     parser.add_argument('--output_dir', type=str, default=None, help='(optional) Output directory')
     parser.add_argument('--mirror', action='store_true', help='Flip the images (axis x)')
+    parser.add_argument('--offset', type=int, default=1, help='Take pair of frames every n frames')
+    parser.add_argument('--reverse', action='store_true', help='Reverse')
     # parser.add_argument('image_name', type=str, help='Image name.')
     args = parser.parse_args()
     return args
@@ -75,6 +77,13 @@ def calculate_transformation(pose_a, pose_b):
     return np.linalg.inv(pose_a) * pose_b
 
 
+def get_src_dst_index(idx_pose, offset=1, reverse=None):
+    dst_index = idx_pose
+    src_index = idx_pose + offset
+    if reverse:
+        return dst_index, src_index
+    return src_index, dst_index
+
 def main():
     args = get_arguments()
     is_mirror = args.mirror
@@ -106,7 +115,8 @@ def main():
 
     t_records = []
     p_records = []
-    offset = 1
+    offset = args.offset
+    reverse = args.reverse
     with open(args.poses_file) as poses_file, open(calib_file) as calibration_file:
         calib = np.genfromtxt(calibration_file, delimiter=' ')
         calibration_matrix = get_calibration_matrix(calib, args.cam)
@@ -120,8 +130,9 @@ def main():
         mirror_inverse = mirror
         transformations = []
         for idx_pose in xrange(poses.shape[0] - offset):
-            dst_index = idx_pose
-            src_index = idx_pose + offset
+            #dst_index = idx_pose
+            #src_index = idx_pose + offset
+            src_index, dst_index = get_src_dst_index(idx_pose, offset, reverse)
             src_pose = poses[src_index]
             dst_pose = poses[dst_index]
             src = vector_to_homogeneous(src_pose)
