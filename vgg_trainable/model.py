@@ -162,6 +162,7 @@ def training(loss, learning_rate):
   global_step = tf.Variable(0, name='global_step', trainable=False)
   # Use the optimizer to apply the gradients that minimize the loss
   # (and also increment the global step counter) as a single training step.
+  tf.summary.scalar('learning_rate', learning_rate)
   train_op = optimizer.minimize(loss, global_step=global_step)
   return train_op
 
