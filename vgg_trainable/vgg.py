@@ -23,7 +23,7 @@ class Vgg19:
 	self.width = width
 	self.height = height
 
-    def build(self, images, train_mode=None):
+    def build(self, images, train_mode=None, pooling_type="max"):
         """
         load variable from npy to build the VGG
         :param images: [batch, height, width, 1] (usually a placeholder)
@@ -32,29 +32,29 @@ class Vgg19:
 
         self.conv1_1 = self.conv_layer(images, 2, 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
-        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+        self.pool1 = self.pooling(self.conv1_2, 'pool1', pooling_type=pooling_type)
 
         self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
         self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
-        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+        self.pool2 = self.pooling(self.conv2_2, 'pool2', pooling_type=pooling_type)
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
         self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
         self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3")
         self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4")
-        self.pool3 = self.max_pool(self.conv3_4, 'pool3')
+        self.pool3 = self.pooling(self.conv3_4, 'pool3', pooling_type=pooling_type)
 
         self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
         self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3")
         self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4")
-        self.pool4 = self.max_pool(self.conv4_4, 'pool4')
+        self.pool4 = self.pooling(self.conv4_4, 'pool4', pooling_type=pooling_type)
 
         self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
         self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
         self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
-        self.pool5 = self.max_pool(self.conv5_4, 'pool5')
+        self.pool5 = self.pooling(self.conv5_4, 'pool5', pooling_type=pooling_type)
 
         fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512 # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
         self.fc6 = self.fc_layer(self.pool5, fc_in_size, 4096, "fc6")
@@ -88,23 +88,23 @@ class Vgg19:
 
         self.conv1_1 = self.conv_layer(images, 2, 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
-        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+        self.pool1 = self.pooling(self.conv1_2, 'pool1')
 
         self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
         self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
-        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+        self.pool2 = self.pooling(self.conv2_2, 'pool2')
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
         self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
-        self.pool3 = self.max_pool(self.conv3_2, 'pool3')
+        self.pool3 = self.pooling(self.conv3_2, 'pool3')
 
         self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
-        self.pool4 = self.max_pool(self.conv4_2, 'pool4')
+        self.pool4 = self.pooling(self.conv4_2, 'pool4')
 
         self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
         self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
-        self.pool5 = self.max_pool(self.conv5_2, 'pool5')
+        self.pool5 = self.pooling(self.conv5_2, 'pool5')
 
         fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512  # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
         self.fc_in = tf.reshape(self.pool5, [-1, fc_in_size])
@@ -126,11 +126,18 @@ class Vgg19:
 	self.fc = self.fc_layer(self.pool1, fc_in_size, 12, "fc")
 	self.data_dict = None
 	return self.fc
-	
+
+	def pooling(self, bottom, name, pooling_type="max"):
+        if pooling_type == "avg":
+            return self.avg_pool(bottom, name)
+        return self.max_pool(bottom, name)
+
     def avg_pool(self, bottom, name):
+        print("Using avg pool")
         return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def max_pool(self, bottom, name):
+        print("Using max pool")
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def conv_layer(self, bottom, in_channels, out_channels, name):
