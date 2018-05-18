@@ -266,6 +266,7 @@ def run_training():
         saver = tf.train.Saver()
 
         current_fold += 1
+        best_validation_performance = 1000000.
         print("**************** NEW FOLD *******************")
         print("Train size: " + str(len(train_indexs)))
         print("Validation size: " + str(len(validation_indexs))) 
@@ -306,11 +307,9 @@ def run_training():
                         summary_writer.flush()
                 # Save a checkpoint and evaluate the model periodically.
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-                        checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
-                        saver.save(sess, checkpoint_file, global_step=step)
                         # Evaluate against the training set.
                         print('Training Data Eval:')
-                        rmse, mse, norm_mse = do_evaluation(sess,
+                        train_rmse, train_mse, train_norm_mse = do_evaluation(sess,
                                 outputs,
                                 images_placeholder,
                                 labels_placeholder,
@@ -318,12 +317,12 @@ def run_training():
                                 FLAGS.batch_size,
                                 intrinsic_matrix,
                                 standardize_targets)
-                        add_scalar_to_tensorboard(rmse, "tr_rmse", summary_writer, step)
-                        add_array_to_tensorboard(mse, "tr_mse_", summary_writer, step)
-                        add_array_to_tensorboard(norm_mse, "tr_norm_mse_", summary_writer, step)
+                        add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, step)
+                        add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
+                        add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                         # Evaluate against the validation set.
                         print('Validation Data Eval:')
-                        rmse, mse, norm_mse = do_evaluation(sess,
+                        validation_rmse, validation_mse, validation_norm_mse = do_evaluation(sess,
                                 outputs,
                                 images_placeholder,
                                 labels_placeholder,
@@ -331,12 +330,12 @@ def run_training():
                                 FLAGS.batch_size,
                                 intrinsic_matrix,
                                 standardize_targets)
-                        add_scalar_to_tensorboard(rmse, "v_rmse", summary_writer, step)
-                        add_array_to_tensorboard(mse, "v_mse_", summary_writer, step)
-                        add_array_to_tensorboard(norm_mse, "v_norm_mse_", summary_writer, step)
+                        add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, step)
+                        add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
+                        add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
                         # Evaluate against the test set.
                         print('Test Data Eval:')
-                        rmse, mse, norm_mse = do_evaluation(sess,
+                        test_rmse, test_mse, test_norm_mse = do_evaluation(sess,
                                         outputs,
                                         images_placeholder,
                                         labels_placeholder,
@@ -344,9 +343,15 @@ def run_training():
                                         FLAGS.batch_size,
                                         test_intrinsic_matrix,
                                         standardize_targets)
-                        add_scalar_to_tensorboard(rmse, "te_rmse", summary_writer, step)
-                        add_array_to_tensorboard(mse, "te_mse_", summary_writer, step)
-                        add_array_to_tensorboard(norm_mse, "te_norm_mse_", summary_writer, step)
+                        add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, step)
+                        add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
+                        add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
+                        # Keep the best model
+                        if validation_rmse < best_validation_performance:
+                            best_validation_performance = validation_rmse
+                            checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
+                            saver.save(sess, checkpoint_file, global_step=step)
+                        # TODO early stopping
     total_duration = time.time() - total_start_time
     print('Total: %.3f sec' % (total_duration))
 
