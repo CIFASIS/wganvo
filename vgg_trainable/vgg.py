@@ -79,6 +79,44 @@ class Vgg19:
         return self.fc8
 
 
+    def build_pruned_vgg(self, images, train_mode=None):
+        """
+        load variable from npy to build the VGG
+        :param images: [batch, height, width, 1] (usually a placeholder)
+        :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
+        """
+
+        self.conv1_1 = self.conv_layer(images, 2, 64, "conv1_1")
+        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
+        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+
+        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
+        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
+        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+
+        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
+        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
+        self.pool3 = self.max_pool(self.conv3_2, 'pool3')
+
+        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
+        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
+        self.pool4 = self.max_pool(self.conv4_2, 'pool4')
+
+        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
+        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
+        self.pool5 = self.max_pool(self.conv5_2, 'pool5')
+
+        fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512  # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
+        self.fc_in = tf.reshape(self.pool5, [-1, fc_in_size])
+        if train_mode is not None:
+            self.fc_in = tf.cond(train_mode, lambda: tf.nn.dropout(self.fc_in, self.dropout), lambda: self.fc_in)
+        elif self.trainable:
+            self.fc_in = tf.nn.dropout(self.fc_in, self.dropout)
+
+        self.output = self.fc_layer(self.fc_in, fc_in_size, 12, "fc8")
+        self.data_dict = None
+        return self.output
+
     def build_non_deep_nn(self, images):
 	self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 32, 32, "conv1_2")

@@ -30,7 +30,7 @@ from __future__ import print_function
 import vgg
 import tensorflow as tf
 MATRIX_MATCH_TOLERANCE = 1e-4
-def inference(images):
+def inference(images, pruned_vgg=False):
   """Build the model up to where it may be used for inference.
   Args:
     images: Images placeholder, from inputs().
@@ -38,7 +38,8 @@ def inference(images):
     softmax_linear: Output tensor with the computed logits.
   """
   v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]))
-  #return v.build_non_deep_nn(images)
+  if pruned_vgg:
+      return v.build_pruned_vgg(images)
   return v.build(images)
 
 
