@@ -3,7 +3,8 @@ import tensorflow as tf
 import numpy as np
 from functools import reduce
 
-#VGG_MEAN = [103.939, 116.779, 123.68]
+
+# VGG_MEAN = [103.939, 116.779, 123.68]
 
 
 class Vgg19:
@@ -21,8 +22,8 @@ class Vgg19:
         self.trainable = trainable
         self.dropout = dropout
         self.activation_function = activation_function
-	self.width = width
-	self.height = height
+        self.width = width
+        self.height = height
 
     def build(self, images, train_mode=None, pooling_type="max"):
         """
@@ -59,14 +60,14 @@ class Vgg19:
 
         fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512 # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
         self.fc6 = self.fc_layer(self.pool5, fc_in_size, 4096, "fc6")
-        self.relu6 = self.activation_function(self.fc6, act_funct=self.activation_function)#tf.nn.relu(self.fc6)
+        self.relu6 = self.activation_function_tensor(self.fc6, act_funct=self.activation_function)#tf.nn.relu(self.fc6)
         if train_mode is not None:
             self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, self.dropout), lambda: self.relu6)
         elif self.trainable:
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
         self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = self.activation_function(self.fc7, act_funct=self.activation_function)#tf.nn.relu(self.fc7)
+        self.relu7 = self.activation_function_tensor(self.fc7, act_funct=self.activation_function)#tf.nn.relu(self.fc7)
         if train_mode is not None:
             self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, self.dropout), lambda: self.relu7)
         elif self.trainable:
@@ -78,7 +79,6 @@ class Vgg19:
 
         self.data_dict = None
         return self.fc8
-
 
     def build_pruned_vgg(self, images, train_mode=None):
         """
@@ -119,16 +119,16 @@ class Vgg19:
         return self.output
 
     def build_non_deep_nn(self, images):
-	self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1")
+        self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 32, 32, "conv1_2")
-	self.pool1 = self.max_pool(self.conv1_2, 'pool1')
-	fc_in_size = ((self.width // 2) * (self.height // 2)) * 32
-	print(fc_in_size)
-	self.fc = self.fc_layer(self.pool1, fc_in_size, 12, "fc")
-	self.data_dict = None
-	return self.fc
+        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+        fc_in_size = ((self.width // 2) * (self.height // 2)) * 32
+        print(fc_in_size)
+        self.fc = self.fc_layer(self.pool1, fc_in_size, 12, "fc")
+        self.data_dict = None
+        return self.fc
 
-	def pooling(self, bottom, name, pooling_type="max"):
+    def pooling(self, bottom, name, pooling_type="max"):
         if pooling_type == "avg":
             return self.avg_pool(bottom, name)
         return self.max_pool(bottom, name)
@@ -141,7 +141,7 @@ class Vgg19:
         print("Using max pool")
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
-    def activation_function(self, features, act_function="relu"):
+    def activation_function_tensor(self, features, act_function="relu"):
         if act_function == "leaky_relu":
             print("Using leaky relu")
             return tf.nn.leaky_relu(features)
@@ -154,7 +154,7 @@ class Vgg19:
 
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
-            act_funct = self.activation_function(bias, act_funct=self.activation_function)
+            act_funct = self.activation_function_tensor(bias, act_funct=self.activation_function)
 
             return act_funct
 
@@ -168,25 +168,25 @@ class Vgg19:
             return fc
 
     def get_conv_var(self, filter_size, in_channels, out_channels, name):
-	initializer = tf.contrib.layers.xavier_initializer()
-	initial_value = initializer([filter_size, filter_size, in_channels, out_channels])
-        #initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, 0.001)
+        initializer = tf.contrib.layers.xavier_initializer()
+        initial_value = initializer([filter_size, filter_size, in_channels, out_channels])
+        # initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, 0.001)
         filters = self.get_var(initial_value, name, 0, name + "_filters")
-	
-	initial_value = initializer([out_channels])
-        #initial_value = tf.truncated_normal([out_channels], .0, .001)
+
+        initial_value = initializer([out_channels])
+        # initial_value = tf.truncated_normal([out_channels], .0, .001)
         biases = self.get_var(initial_value, name, 1, name + "_biases")
 
         return filters, biases
 
     def get_fc_var(self, in_size, out_size, name):
-	initializer = tf.contrib.layers.xavier_initializer()
-        #initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.001)
-	initial_value = initializer([in_size, out_size])
+        initializer = tf.contrib.layers.xavier_initializer()
+        # initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.001)
+        initial_value = initializer([in_size, out_size])
         weights = self.get_var(initial_value, name, 0, name + "_weights")
 
-        #initial_value = tf.truncated_normal([out_size], .0, .001)
-	initial_value = initializer([out_size])
+        # initial_value = tf.truncated_normal([out_size], .0, .001)
+        initial_value = initializer([out_size])
         biases = self.get_var(initial_value, name, 1, name + "_biases")
 
         return weights, biases
