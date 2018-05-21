@@ -225,7 +225,7 @@ def run_training():
     #    data_sets.train.num_examples)
 
     # Build a Graph that computes predictions from the inference model.
-    outputs = model.inference(images_placeholder, FLAGS.pruned_vgg, FLAGS.pooling)
+    outputs = model.inference(images_placeholder, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
     
     # Rename
     outputs = tf.identity(outputs, name = "outputs")
@@ -433,6 +433,10 @@ if __name__ == '__main__':
                       choices=["avg","max"],
                       default="max",
                       help='Pooling')
+  parser.add_argument('--act_function',
+                      choices=["relu", "leaky_relu"],
+                      default="relu",
+                      help='Activation function')
 
   FLAGS, unparsed = parser.parse_known_args()
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
