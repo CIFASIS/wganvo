@@ -60,14 +60,14 @@ class Vgg19:
 
         fc_in_size = ((self.width // (2 ** 5)) * (self.height // (2 ** 5))) * 512 # (las conv_layer mantienen el ancho y alto, y los max_pool lo reducen a la mitad. Hay 5 max pool)
         self.fc6 = self.fc_layer(self.pool5, fc_in_size, 4096, "fc6")
-        self.relu6 = self.activation_function_tensor(self.fc6, act_funct=self.activation_function)#tf.nn.relu(self.fc6)
+        self.relu6 = self.activation_function_tensor(self.fc6, act_function=self.activation_function)#tf.nn.relu(self.fc6)
         if train_mode is not None:
             self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, self.dropout), lambda: self.relu6)
         elif self.trainable:
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
         self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = self.activation_function_tensor(self.fc7, act_funct=self.activation_function)#tf.nn.relu(self.fc7)
+        self.relu7 = self.activation_function_tensor(self.fc7, act_function=self.activation_function)#tf.nn.relu(self.fc7)
         if train_mode is not None:
             self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, self.dropout), lambda: self.relu7)
         elif self.trainable:
@@ -154,7 +154,7 @@ class Vgg19:
 
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
-            act_funct = self.activation_function_tensor(bias, act_funct=self.activation_function)
+            act_funct = self.activation_function_tensor(bias, act_function=self.activation_function)
 
             return act_funct
 
