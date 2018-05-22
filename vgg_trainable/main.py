@@ -371,7 +371,7 @@ def run_training():
                         checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
                         saver.save(sess, checkpoint_file, global_step=step)
                     if step - last_improvement > require_improvement:
-                        print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (step))
+                        print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (last_improvement))
                         break
         total_duration = time.time() - total_start_time
         print('Total: %.3f sec' % (total_duration))
