@@ -267,7 +267,7 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output, [-1, OUTPUT_DIM])
+    return tf.reshape(output, [-1, 2 * 128 * 96])
 
 def WGANPaper_CrippledDCGANGenerator(n_samples, noise=None, dim=DIM):
     if noise is None:
@@ -426,13 +426,13 @@ def FCDiscriminator(inputs, FC_DIM=512, n_layers=3):
     return tf.reshape(output, [-1])
 
 def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
-    output = tf.reshape(inputs, [-1, 3, 64, 64])
+    output = tf.reshape(inputs, [-1, 2, 128, 128])
 
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.1', 3, dim, 5, output, stride=2)
+    output = lib.ops.conv2d.Conv2D('Discriminator.1', 2, dim, 5, output, stride=2)
     output = nonlinearity(output)
 
     output = lib.ops.conv2d.Conv2D('Discriminator.2', dim, 2*dim, 5, output, stride=2)
@@ -452,32 +452,36 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
 
     output = tf.reshape(output, [-1, 4*4*8*dim])
     output = lib.ops.linear.Linear('Discriminator.Output', 4*4*8*dim, 1, output)
+    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', 4*4*8*dim, 12, output)
 
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output, [-1])
+    return tf.reshape(output, [-1]), output_vo
 
 Generator, Discriminator = GeneratorAndDiscriminator()
 
+def vo_cost_function(outputs, targets):
+    return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+
 with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
 
-    all_real_data_conv = tf.placeholder(tf.int32, shape=[BATCH_SIZE, 3, 64, 64])
+    all_real_data_conv = tf.placeholder(tf.int32, shape=[BATCH_SIZE, 2, 128, 128])
     if tf.__version__.startswith('1.'):
         split_real_data_conv = tf.split(all_real_data_conv, len(DEVICES))
     else:
         split_real_data_conv = tf.split(0, len(DEVICES), all_real_data_conv)
     gen_costs, disc_costs = [],[]
-
+    vo_targets = tf.placeholder(tf.float32, shape=[BATCH_SIZE, 12])
     for device_index, (device, real_data_conv) in enumerate(zip(DEVICES, split_real_data_conv)):
         with tf.device(device):
 
             real_data = tf.reshape(2*((tf.cast(real_data_conv, tf.float32)/255.)-.5), [BATCH_SIZE/len(DEVICES), OUTPUT_DIM])
             fake_data = Generator(BATCH_SIZE/len(DEVICES))
 
-            disc_real = Discriminator(real_data)
-            disc_fake = Discriminator(fake_data)
+            disc_real, disc_real_vo = Discriminator(real_data)
+            disc_fake, _ = Discriminator(fake_data) # TODO sirve de algo esta salida _vo?
 
             if MODE == 'wgan':
                 gen_cost = -tf.reduce_mean(disc_fake)
@@ -486,7 +490,7 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
             elif MODE == 'wgan-gp':
                 gen_cost = -tf.reduce_mean(disc_fake)
                 disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-
+                vo_cost = vo_cost_function(disc_real_vo, vo_targets)
                 alpha = tf.random_uniform(
                     shape=[BATCH_SIZE/len(DEVICES),1], 
                     minval=0.,
@@ -539,6 +543,7 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         clip_disc_weights = tf.group(*clip_ops)
 
     elif MODE == 'wgan-gp':
+        # con var_list le indicamos cuáles parámetros (pesos) queremos actualizar, en el primer caso los del Generator, en el segundo caso los del Disc
         gen_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(gen_cost,
                                           var_list=lib.params_with_name('Generator'), colocate_gradients_with_ops=True)
         disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
@@ -587,7 +592,7 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
     _x = inf_train_gen().next()
     _x_r = session.run(real_data, feed_dict={real_data_conv: _x[:BATCH_SIZE/N_GPUS]})
     _x_r = ((_x_r+1.)*(255.99/2)).astype('int32')
-    lib.save_images.save_images(_x_r.reshape((BATCH_SIZE/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png')
+    # lib.save_images.save_images(_x_r.reshape((BATCH_SIZE/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png') TODO por ahora no
 
 
     # Train loop
@@ -623,7 +628,7 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
                 dev_disc_costs.append(_dev_disc_cost)
             lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-            generate_image(iteration)
+            # generate_image(iteration) TODO Por ahora no
 
         if (iteration < 5) or (iteration % 200 == 199):
             lib.plot.flush()
