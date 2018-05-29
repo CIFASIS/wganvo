@@ -20,8 +20,6 @@ from __future__ import print_function
 
 # pylint: disable=missing-docstring
 import argparse
-import os
-import sys
 import time
 # Scipy
 from scipy import linalg
@@ -35,11 +33,8 @@ sys.path.insert(0, parentdir)
 # import sys
 # from os import path
 # sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
-from transform import se3_to_components
-from array_utils import load
+
 import tensorflow as tf
-import input_data
-import model
 import numpy as np
 import numpy.matlib as matlib
 
@@ -386,6 +381,10 @@ def main(_):
 
 
 if __name__ == '__main__':
+    import input_data
+    import model
+    from transform import se3_to_components
+    from array_utils import load
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'train_data_dir',
