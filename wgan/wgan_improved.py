@@ -520,6 +520,9 @@ def run(args):
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             disc_vo_cost = vo_cost_function(disc_real_vo, vo_targets)
+            tf.summary.scalar('gen_cost', gen_cost)
+            tf.summary.scalar('disc_cost', disc_cost)
+            tf.summary.scalar('vo_cost', disc_vo_cost)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -691,6 +694,7 @@ def run(args):
                     disc_iters = 1
                 else:
                     disc_iters = CRITIC_ITERS
+                feed_dict = None
                 for i in xrange(disc_iters):
                     feed_dict = fill_feed_dict(train_dataset,
                                                all_real_data_conv,
