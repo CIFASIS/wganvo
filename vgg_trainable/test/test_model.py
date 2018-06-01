@@ -11,7 +11,7 @@ from main import fill_feed_dict, do_evaluation
 
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
-def test_model(model_name, intrinsic_matrix, data_dir):
+def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
 	sess = tf.Session()
 	saver = tf.train.import_meta_graph(model_name+".meta")
 	#print(model_name)
@@ -38,12 +38,12 @@ def test_model(model_name, intrinsic_matrix, data_dir):
 		relative_poses_prediction[init:end] = batch_relative_poses_pred
 		relative_poses_target[init:end] = batch_relative_poses_target
         
-	np.savetxt("relative_poses_prediction.txt", relative_poses_prediction, delimiter=' ')
-	np.savetxt("relative_poses_target.txt", relative_poses_target, delimiter=' ')
+	np.savetxt(os.path.join(output_dir,"relative_poses_prediction.txt"), relative_poses_prediction, delimiter=' ')
+	np.savetxt(os.path.join(output_dir,"relative_poses_target.txt"), relative_poses_target, delimiter=' ')
 	absolute_poses_prediction = get_absolute_poses(relative_poses_prediction.reshape((num_examples,3,4)))
 	absolute_poses_target = get_absolute_poses(relative_poses_target.reshape((num_examples,3,4)))
-	np.savetxt("absolute_poses_prediction.txt", absolute_poses_prediction.reshape(num_examples,12), delimiter=' ')
-	np.savetxt("absolute_poses_target.txt", absolute_poses_target.reshape(num_examples,12), delimiter=' ')
+	np.savetxt(os.path.join(output_dir,"absolute_poses_prediction.txt"), absolute_poses_prediction.reshape(num_examples,12), delimiter=' ')
+	np.savetxt(os.path.join(output_dir,"absolute_poses_target.txt"), absolute_poses_target.reshape(num_examples,12), delimiter=' ')
 
 
 def get_trajectories(dataset, batch_size, inverse_intrinsic_matrix, prediction_batch, target_batch):
@@ -84,7 +84,7 @@ def get_absolute_poses(relative_poses):
 
 def main(_):
     intrinsic_matrix = np.matrix(np.loadtxt(FLAGS.intrinsics_path, delimiter=' '))
-    test_model(FLAGS.model_name, intrinsic_matrix, FLAGS.data_dir)
+    test_model(FLAGS.model_name, intrinsic_matrix, FLAGS.data_dir, FLAGS.output_dir)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -102,6 +102,12 @@ if __name__ == '__main__':
       '--intrinsics_path',
       type=str,
       default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
+      help='Intrinsic matrix path'
+    )
+    parser.add_argument(
+      '--output_dir',
+      type=str,
+      default=os.getcwd(),
       help='Intrinsic matrix path'
     )
 
