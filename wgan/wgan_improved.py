@@ -719,7 +719,7 @@ def run(args):
                     # generate_image(iteration) TODO Por ahora no
 
                 if (iteration < 5) or (iteration % 200 == 199):
-                    lib.plot.flush()
+                    lib.plot.flush(args.log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
