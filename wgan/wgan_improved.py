@@ -32,10 +32,10 @@ MODE = 'wgan-gp'  # dcgan, wgan, wgan-gp, lsgan
 DIM = 64  # Model dimensionality
 CRITIC_ITERS = 5  # How many iterations to train the critic for
 N_GPUS = 1  # Number of GPUs
-BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
-ITERS = 200000  # How many iterations to train for
+#BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
+# ITERS = 200000  # How many iterations to train for
 LAMBDA = 10  # Gradient penalty lambda hyperparameter
-OUTPUT_DIM = 64 * 64 * 3  # Number of pixels in each iamge
+OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
 
 lib.print_model_settings(locals().copy())
 
@@ -283,7 +283,7 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
         output = Normalize('Generator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, 3, 5, output)
+    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, 6, 5, output)
     output = tf.tanh(output)
 
     lib.ops.conv2d.unset_weights_stdev()
@@ -454,8 +454,7 @@ def FCDiscriminator(inputs, FC_DIM=512, n_layers=3):
 
 
 def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
-    output = tf.reshape(inputs, [-1, 2, 128, 128])
-
+    output = tf.reshape(inputs, [-1, 2, 96, 128])
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
@@ -478,15 +477,16 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
         output = Normalize('Discriminator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
-    output = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output)
-    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', 4 * 4 * 8 * dim, 12, output)
-
+    output1 = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
+    output2 = tf.reshape(output, [-1, 96 * 128 * 2])
+    print(output2.shape)
+    output_disc = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output1)
+    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', 96 * 128 * 2, 12, output2)
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output, [-1]), output_vo
+    return tf.reshape(output_disc, [-1]), output_vo
 
 
 Generator, Discriminator = GeneratorAndDiscriminator()
@@ -499,20 +499,19 @@ def vo_cost_function(outputs, targets):
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
 
-        all_real_data_conv = tf.placeholder(tf.float32, shape=[BATCH_SIZE, 96, 128, 2])
+        all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, 96, 128, 2])
         if tf.__version__.startswith('1.'):
             split_real_data_conv = tf.split(all_real_data_conv, len(DEVICES))
         else:
             split_real_data_conv = tf.split(0, len(DEVICES), all_real_data_conv)
         gen_costs, disc_costs, disc_vo_costs = [], [], []
-        vo_targets = tf.placeholder(tf.float32, shape=[BATCH_SIZE, 12])
+        vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, 12])
         for device_index, (device, real_data_conv) in enumerate(zip(DEVICES, split_real_data_conv)):
             with tf.device(device):
 
-                real_data = real_data_conv  # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
-                #           [BATCH_SIZE / len(DEVICES), OUTPUT_DIM])
-                fake_data = Generator(BATCH_SIZE / len(DEVICES))
-
+                real_data = tf.reshape(real_data_conv, [args.batch_size / len(DEVICES), 96 * 128 * 2]) # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
+                #           [args.batch_size / len(DEVICES), OUTPUT_DIM])
+                fake_data = Generator(args.batch_size / len(DEVICES))
                 disc_real, disc_real_vo = Discriminator(real_data)
                 disc_fake, _ = Discriminator(fake_data)
 
@@ -525,7 +524,7 @@ def run(args):
                     disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
                     disc_vo_cost = vo_cost_function(disc_real_vo, vo_targets)
                     alpha = tf.random_uniform(
-                        shape=[BATCH_SIZE / len(DEVICES), 1],
+                        shape=[args.batch_size / len(DEVICES), 1],
                         minval=0.,
                         maxval=1.
                     )
@@ -626,10 +625,10 @@ def run(args):
             raise Exception()
 
         # For generating samples
-        fixed_noise = tf.constant(np.random.normal(size=(BATCH_SIZE, 128)).astype('float32'))
+        fixed_noise = tf.constant(np.random.normal(size=(args.batch_size, 128)).astype('float32'))
         all_fixed_noise_samples = []
         for device_index, device in enumerate(DEVICES):
-            n_samples = BATCH_SIZE / len(DEVICES)
+            n_samples = args.batch_size / len(DEVICES)
             all_fixed_noise_samples.append(
                 Generator(n_samples, noise=fixed_noise[device_index * n_samples:(device_index + 1) * n_samples]))
         if tf.__version__.startswith('1.'):
@@ -640,10 +639,11 @@ def run(args):
         def generate_image(iteration):
             samples = session.run(all_fixed_noise_samples)
             samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
-            lib.save_images.save_images(samples.reshape((BATCH_SIZE, 3, 64, 64)), 'samples_{}.png'.format(iteration))
+            # FIXME resolucion
+            # lib.save_images.save_images(samples.reshape((args.batch_size, 3, 64, 64)), 'samples_{}.png'.format(iteration))
 
         # Dataset iterator
-        # train_gen, dev_gen = lib.small_imagenet.load(BATCH_SIZE, data_dir=DATA_DIR)
+        # train_gen, dev_gen = lib.small_imagenet.load(args.batch_size, data_dir=DATA_DIR)
 
         # def inf_train_gen():
         #    while True:
@@ -652,9 +652,9 @@ def run(args):
 
         # Save a batch of ground-truth samples
         # _x = inf_train_gen().next()
-        # _x_r = session.run(real_data, feed_dict={real_data_conv: _x[:BATCH_SIZE/N_GPUS]})
+        # _x_r = session.run(real_data, feed_dict={real_data_conv: _x[:args.batch_size/N_GPUS]})
         # _x_r = ((_x_r+1.)*(255.99/2)).astype('int32')
-        # lib.save_images.save_images(_x_r.reshape((BATCH_SIZE/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png') TODO por ahora no
+        # lib.save_images.save_images(_x_r.reshape((args.batch_size/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png') TODO por ahora no
 
 
         kfold = 5
@@ -663,23 +663,19 @@ def run(args):
 
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
-
+        standardize_targets = True
+        # Train loop
         for train_indexs, validation_indexs in splits:
-
 
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs],
-                                               fake_data=args.fake_data)
-
-            # Train loop
+                                    fake_data=False)
             session.run(init)
 
-            # TODO agregar el for que falta, ver main.py
-
             # gen = inf_train_gen()
-            for iteration in xrange(ITERS):
+            for iteration in xrange(args.max_steps):
 
                 start_time = time.time()
 
@@ -693,24 +689,30 @@ def run(args):
                 else:
                     disc_iters = CRITIC_ITERS
                 for i in xrange(disc_iters):
-                    _data = gen.next()
-                    _disc_cost, _ = session.run([disc_cost, disc_train_op], feed_dict={all_real_data_conv: _data})
+                    feed_dict = fill_feed_dict(train_dataset,
+                                               all_real_data_conv,
+                                               vo_targets,
+                                               True,
+                                               batch_size=args.batch_size,
+                                               standardize_targets=standardize_targets)
+                    # _data = gen.next()
+                    _disc_cost, _ = session.run([disc_cost, disc_train_op], feed_dict=feed_dict)
+                    # Train VO
+                    _disc_vo_cost, _ = session.run([disc_vo_cost, disc_vo_train_op], feed_dict=feed_dict)
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
                 lib.plot.plot('train disc cost', _disc_cost)
+                lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
-
-                # Train VO
-                _disc_vo_cost, _ = session.run([disc_vo_cost, disc_vo_train_op], feed_dict)
 
                 if iteration % 200 == 199:
                     t = time.time()
                     dev_disc_costs = []
-                    for (images,) in dev_gen():
-                        _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
-                        dev_disc_costs.append(_dev_disc_cost)
-                    lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
+                    # for (images,) in dev_gen():
+                    #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
+                    #    dev_disc_costs.append(_dev_disc_cost)
+                    # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
                     # generate_image(iteration) TODO Por ahora no
 
@@ -720,5 +722,37 @@ def run(args):
                 lib.plot.tick()
 
 
+def main(_):
+    run(FLAGS)
+
+
 if __name__ == '__main__':
-    run()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'train_data_dir',
+        type=str,
+        default=".",
+        help='Directory to put the train data.'
+    )
+    parser.add_argument(
+        'test_data_dir',
+        type=str,
+        default=".",
+        help='Directory to put the test data.'
+    )
+    parser.add_argument(
+        '--max_steps',
+        type=int,
+        default=10000,
+        help='Number of steps to run trainer.'
+    )
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=100,
+        help='Batch size.  Must divide evenly into the dataset sizes.'
+    )
+    FLAGS, unparsed = parser.parse_known_args()
+    tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
