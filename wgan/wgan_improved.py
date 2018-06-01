@@ -655,6 +655,7 @@ def run(args):
             test_intrinsic_matrix = intrinsic_matrix
 
         test_dataset = DataSet(test_images, test_targets)
+        summary = tf.summary.merge_all()
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
         standardize_targets = True
@@ -670,9 +671,9 @@ def run(args):
             saver = tf.train.Saver()
             current_fold += 1
             fwriter_str = "fold_" + str(current_fold)
-            curr_fold_log_path = os.path.join(args.log_dir, fwriter_str)
+            curr_fold_log_dir = os.path.join(args.log_dir, fwriter_str)
             # Instantiate a SummaryWriter to output summaries and the Graph.
-            summary_writer = tf.summary.FileWriter(curr_fold_log_path, session.graph)
+            summary_writer = tf.summary.FileWriter(curr_fold_log_dir, session.graph)
             best_validation_performance = 1000000.
             session.run(init)
 
@@ -718,10 +719,18 @@ def run(args):
 
                     # generate_image(iteration) TODO Por ahora no
 
+                if iteration % 100 == 0:
+                    duration = time.time() - start_time
+                    # Print status to stdout.
+                    print('Step %d: loss = %.2f (%.3f sec)' % (iteration, _disc_vo_cost, duration))
+                    # Update the events file.
+                    summary_str = session.run(summary, feed_dict=feed_dict)
+                    summary_writer.add_summary(summary_str, iteration)
+                    summary_writer.flush()
                 if (iteration < 5) or (iteration % 200 == 199):
-                    lib.plot.flush(args.log_dir)
+                    lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
-                if (iteration + 1) % 1000 == 0 or (iteration + 1) == FLAGS.max_steps:
+                if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
@@ -769,7 +778,7 @@ def run(args):
                     if validation_rmse < best_validation_performance:
                         best_validation_performance = validation_rmse
                         last_improvement = iteration
-                        checkpoint_file = os.path.join(curr_fold_log_path, 'wgan-model')
+                        checkpoint_file = os.path.join(curr_fold_log_dir, 'wgan-model')
                         saver.save(session, checkpoint_file, global_step=iteration)
                     if iteration - last_improvement > require_improvement:
                         print(
