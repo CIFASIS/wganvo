@@ -37,6 +37,7 @@ sys.path.insert(0, parentdir)
 import tensorflow as tf
 import numpy as np
 import numpy.matlib as matlib
+from transform import se3_to_components
 
 # Basic model parameters as external flags.
 FLAGS = None
@@ -383,7 +384,6 @@ def main(_):
 if __name__ == '__main__':
     import input_data
     import model
-    from transform import se3_to_components
     from array_utils import load
     parser = argparse.ArgumentParser()
     parser.add_argument(
