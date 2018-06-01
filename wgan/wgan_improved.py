@@ -2,8 +2,8 @@ import os, sys, inspect
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir)
-#sys.path.append(os.pardir)
+sys.path.insert(0, parentdir)
+# sys.path.append(os.pardir)
 # sys.path.append(os.get)
 import time
 import functools
@@ -23,7 +23,8 @@ import tflib.ops.layernorm
 import tflib.plot
 
 from vgg_trainable.input_data import read_data_sets, DataSet
-from vgg_trainable.main import fill_feed_dict
+from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
+from array_utils import load
 
 # Download 64x64 ImageNet at http://image-net.org/small/download.php and
 # fill in the path to the extracted files here!
@@ -35,7 +36,7 @@ MODE = 'wgan-gp'  # dcgan, wgan, wgan-gp, lsgan
 DIM = 64  # Model dimensionality
 CRITIC_ITERS = 5  # How many iterations to train the critic for
 N_GPUS = 1  # Number of GPUs
-#BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
+# BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
 # ITERS = 200000  # How many iterations to train for
 LAMBDA = 10  # Gradient penalty lambda hyperparameter
 OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
@@ -482,7 +483,6 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
 
     output1 = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
     output2 = tf.reshape(output, [-1, 96 * 128 * 2])
-    print(output2.shape)
     output_disc = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output1)
     output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', 96 * 128 * 2, 12, output2)
     lib.ops.conv2d.unset_weights_stdev()
@@ -503,75 +503,61 @@ def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
 
         all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, 96, 128, 2])
-        if tf.__version__.startswith('1.'):
-            split_real_data_conv = tf.split(all_real_data_conv, len(DEVICES))
-        else:
-            split_real_data_conv = tf.split(0, len(DEVICES), all_real_data_conv)
-        gen_costs, disc_costs, disc_vo_costs = [], [], []
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, 12])
-        for device_index, (device, real_data_conv) in enumerate(zip(DEVICES, split_real_data_conv)):
-            with tf.device(device):
 
-                real_data = tf.reshape(real_data_conv, [args.batch_size / len(DEVICES), 96 * 128 * 2]) # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
-                #           [args.batch_size / len(DEVICES), OUTPUT_DIM])
-                fake_data = Generator(args.batch_size / len(DEVICES))
-                disc_real, disc_real_vo = Discriminator(real_data)
-                disc_fake, _ = Discriminator(fake_data)
+        real_data = tf.reshape(all_real_data_conv, [args.batch_size,
+                                                    96 * 128 * 2])  # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
+        #           [args.batch_size / len(DEVICES), OUTPUT_DIM])
+        fake_data = Generator(args.batch_size)
+        disc_real, disc_real_vo = Discriminator(real_data)
+        disc_fake, _ = Discriminator(fake_data)
 
-                if MODE == 'wgan':
-                    gen_cost = -tf.reduce_mean(disc_fake)
-                    disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
+        if MODE == 'wgan':
+            gen_cost = -tf.reduce_mean(disc_fake)
+            disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
 
-                elif MODE == 'wgan-gp':
-                    gen_cost = -tf.reduce_mean(disc_fake)
-                    disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-                    disc_vo_cost = vo_cost_function(disc_real_vo, vo_targets)
-                    alpha = tf.random_uniform(
-                        shape=[args.batch_size / len(DEVICES), 1],
-                        minval=0.,
-                        maxval=1.
-                    )
-                    differences = fake_data - real_data
-                    interpolates = real_data + (alpha * differences)
-                    gradients = tf.gradients(Discriminator(interpolates), [interpolates])[0]
-                    slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-                    gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-                    disc_cost += LAMBDA * gradient_penalty
+        elif MODE == 'wgan-gp':
+            gen_cost = -tf.reduce_mean(disc_fake)
+            disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
+            disc_vo_cost = vo_cost_function(disc_real_vo, vo_targets)
+            alpha = tf.random_uniform(
+                shape=[args.batch_size, 1],
+                minval=0.,
+                maxval=1.
+            )
+            differences = fake_data - real_data
+            interpolates = real_data + (alpha * differences)
+            gradients = tf.gradients(Discriminator(interpolates), [interpolates])[0]
+            slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
+            gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
+            disc_cost += LAMBDA * gradient_penalty
 
-                elif MODE == 'dcgan':
-                    try:  # tf pre-1.0 (bottom) vs 1.0 (top)
-                        gen_cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake,
-                                                                                          labels=tf.ones_like(
-                                                                                              disc_fake)))
-                        disc_cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake,
-                                                                                           labels=tf.zeros_like(
-                                                                                               disc_fake)))
-                        disc_cost += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real,
-                                                                                            labels=tf.ones_like(
-                                                                                                disc_real)))
-                    except Exception as e:
-                        gen_cost = tf.reduce_mean(
-                            tf.nn.sigmoid_cross_entropy_with_logits(disc_fake, tf.ones_like(disc_fake)))
-                        disc_cost = tf.reduce_mean(
-                            tf.nn.sigmoid_cross_entropy_with_logits(disc_fake, tf.zeros_like(disc_fake)))
-                        disc_cost += tf.reduce_mean(
-                            tf.nn.sigmoid_cross_entropy_with_logits(disc_real, tf.ones_like(disc_real)))
-                    disc_cost /= 2.
+        elif MODE == 'dcgan':
+            try:  # tf pre-1.0 (bottom) vs 1.0 (top)
+                gen_cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake,
+                                                                                  labels=tf.ones_like(
+                                                                                      disc_fake)))
+                disc_cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake,
+                                                                                   labels=tf.zeros_like(
+                                                                                       disc_fake)))
+                disc_cost += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real,
+                                                                                    labels=tf.ones_like(
+                                                                                        disc_real)))
+            except Exception as e:
+                gen_cost = tf.reduce_mean(
+                    tf.nn.sigmoid_cross_entropy_with_logits(disc_fake, tf.ones_like(disc_fake)))
+                disc_cost = tf.reduce_mean(
+                    tf.nn.sigmoid_cross_entropy_with_logits(disc_fake, tf.zeros_like(disc_fake)))
+                disc_cost += tf.reduce_mean(
+                    tf.nn.sigmoid_cross_entropy_with_logits(disc_real, tf.ones_like(disc_real)))
+            disc_cost /= 2.
 
-                elif MODE == 'lsgan':
-                    gen_cost = tf.reduce_mean((disc_fake - 1) ** 2)
-                    disc_cost = (tf.reduce_mean((disc_real - 1) ** 2) + tf.reduce_mean((disc_fake - 0) ** 2)) / 2.
+        elif MODE == 'lsgan':
+            gen_cost = tf.reduce_mean((disc_fake - 1) ** 2)
+            disc_cost = (tf.reduce_mean((disc_real - 1) ** 2) + tf.reduce_mean((disc_fake - 0) ** 2)) / 2.
 
-                else:
-                    raise Exception()
-
-                gen_costs.append(gen_cost)
-                disc_costs.append(disc_cost)
-                disc_vo_costs.append(disc_vo_cost)
-
-        gen_cost = tf.add_n(gen_costs) / len(DEVICES)
-        disc_cost = tf.add_n(disc_costs) / len(DEVICES)
-        disc_vo_cost = tf.add_n(disc_vo_costs) / len(DEVICES)
+        else:
+            raise Exception()
 
         if MODE == 'wgan':
             gen_train_op = tf.train.RMSPropOptimizer(learning_rate=5e-5).minimize(gen_cost,
@@ -630,10 +616,9 @@ def run(args):
         # For generating samples
         fixed_noise = tf.constant(np.random.normal(size=(args.batch_size, 128)).astype('float32'))
         all_fixed_noise_samples = []
-        for device_index, device in enumerate(DEVICES):
-            n_samples = args.batch_size / len(DEVICES)
-            all_fixed_noise_samples.append(
-                Generator(n_samples, noise=fixed_noise[device_index * n_samples:(device_index + 1) * n_samples]))
+        n_samples = args.batch_size
+        all_fixed_noise_samples.append(
+            Generator(n_samples, noise=fixed_noise[0: n_samples]))
         if tf.__version__.startswith('1.'):
             all_fixed_noise_samples = tf.concat(all_fixed_noise_samples, axis=0)
         else:
@@ -663,18 +648,32 @@ def run(args):
         kfold = 5
         train_images, train_targets, splits = read_data_sets(args.train_data_dir, kfold)
         test_images, test_targets, _ = read_data_sets(args.test_data_dir)
+        intrinsic_matrix = np.matrix(load(args.intrinsics_file))
+        if args.test_intrinsics_file:
+            test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
+        else:
+            test_intrinsic_matrix = intrinsic_matrix
 
+        test_dataset = DataSet(test_images, test_targets)
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
         standardize_targets = True
+        current_fold = 0
+        require_improvement = 12000
         # Train loop
         for train_indexs, validation_indexs in splits:
 
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs],
-                                    fake_data=False)
+            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs])
+            saver = tf.train.Saver()
+            current_fold += 1
+            fwriter_str = "fold_" + str(current_fold)
+            curr_fold_log_path = os.path.join(args.log_dir, fwriter_str)
+            # Instantiate a SummaryWriter to output summaries and the Graph.
+            summary_writer = tf.summary.FileWriter(curr_fold_log_path, session.graph)
+            best_validation_performance = 1000000.
             session.run(init)
 
             # gen = inf_train_gen()
@@ -686,7 +685,7 @@ def run(args):
                 if iteration > 0:
                     _ = session.run(gen_train_op)
 
-                # Train critic
+                # Train critic and VO
                 if (MODE == 'dcgan') or (MODE == 'lsgan'):
                     disc_iters = 1
                 else:
@@ -699,9 +698,9 @@ def run(args):
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
                     # _data = gen.next()
-                    _disc_cost, _ = session.run([disc_cost, disc_train_op], feed_dict=feed_dict)
-                    # Train VO
-                    _disc_vo_cost, _ = session.run([disc_vo_cost, disc_vo_train_op], feed_dict=feed_dict)
+                    _disc_cost, _disc_vo_cost, _, _ = session.run(
+                        [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
+
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
@@ -721,7 +720,62 @@ def run(args):
 
                 if (iteration < 5) or (iteration % 200 == 199):
                     lib.plot.flush()
-
+                # Save a checkpoint and evaluate the model periodically.
+                if (iteration + 1) % 1000 == 0 or (iteration + 1) == FLAGS.max_steps:
+                    # Evaluate against the training set.
+                    print('Training Data Eval:')
+                    train_rmse, train_mse, train_norm_mse = do_evaluation(session,
+                                                                          disc_real_vo,
+                                                                          all_real_data_conv,
+                                                                          vo_targets,
+                                                                          train_dataset,
+                                                                          args.batch_size,
+                                                                          intrinsic_matrix,
+                                                                          standardize_targets)
+                    add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, iteration)
+                    add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
+                    add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, iteration)
+                    # Evaluate against the validation set.
+                    print('Validation Data Eval:')
+                    validation_rmse, validation_mse, validation_norm_mse = do_evaluation(session,
+                                                                                         disc_real_vo,
+                                                                                         all_real_data_conv,
+                                                                                         vo_targets,
+                                                                                         DataSet(
+                                                                                             train_images[
+                                                                                                 validation_indexs],
+                                                                                             train_targets[
+                                                                                                 validation_indexs]),
+                                                                                         args.batch_size,
+                                                                                         intrinsic_matrix,
+                                                                                         standardize_targets)
+                    add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, iteration)
+                    add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
+                    add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, iteration)
+                    # Evaluate against the test set.
+                    print('Test Data Eval:')
+                    test_rmse, test_mse, test_norm_mse = do_evaluation(session,
+                                                                       disc_real_vo,
+                                                                       all_real_data_conv,
+                                                                       vo_targets,
+                                                                       test_dataset,
+                                                                       args.batch_size,
+                                                                       test_intrinsic_matrix,
+                                                                       standardize_targets)
+                    add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, iteration)
+                    add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
+                    add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, iteration)
+                    # Keep the best model
+                    if validation_rmse < best_validation_performance:
+                        best_validation_performance = validation_rmse
+                        last_improvement = iteration
+                        checkpoint_file = os.path.join(curr_fold_log_path, 'wgan-model')
+                        saver.save(session, checkpoint_file, global_step=iteration)
+                    if iteration - last_improvement > require_improvement:
+                        print(
+                            "No improvement found in a while, stopping optimization. Last improvement = step %d" % (
+                                last_improvement))
+                        break
                 lib.plot.tick()
 
 
@@ -756,6 +810,24 @@ if __name__ == '__main__':
         type=int,
         default=100,
         help='Batch size.  Must divide evenly into the dataset sizes.'
+    )
+    parser.add_argument(
+        '--log_dir',
+        type=str,
+        default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
+                             'tensorflow/jcremona/tesina/logs/'),
+        help='Directory to put the log data.'
+    )
+    parser.add_argument(
+        '--intrinsics_file',
+        type=str,
+        default=os.path.join(os.getcwd(), "intrinsic_matrix.txt"),
+        help='Intrinsic matrix path'
+    )
+    parser.add_argument(
+        '--test_intrinsics_file',
+        type=str,
+        help='Intrinsic matrix path'
     )
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
