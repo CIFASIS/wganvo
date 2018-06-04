@@ -4,15 +4,16 @@ import collections
 import os
 from sklearn.model_selection import GroupKFold
 from six.moves import xrange
+import transformations
 
 Datasets = collections.namedtuple('Datasets', ['train', 'cross_validation_splits', 'test'])
 IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
-LABELS_SIZE = 12
+LABELS_SIZE = 7
 DEFAULT_MAIN_KEY = 'arr_0'
-P_FILENAME = "p.npz"
-DEFAULT_LABEL_KEY = "P"
+P_FILENAME = "t.npz"
+DEFAULT_LABEL_KEY = "T"
 
 class DataSet(object):
   def __init__(self,
@@ -180,7 +181,10 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             src_idx = single_raw_label['src_idx']
             dst_idx = single_raw_label['dst_idx']
             idxs.append((src_idx, dst_idx))
-            label = single_raw_label[DEFAULT_LABEL_KEY].reshape(LABELS_SIZE)
+            rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
+            rt = numpy.asmatrix(rt)
+            q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
+            label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
             labels.append(label)
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)

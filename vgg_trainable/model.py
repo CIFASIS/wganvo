@@ -29,63 +29,84 @@ from __future__ import print_function
 
 import vgg
 import tensorflow as tf
+
 MATRIX_MATCH_TOLERANCE = 1e-4
+
+
 def inference(images, pruned_vgg=False, pooling_type="max", activation_function="relu"):
-  """Build the model up to where it may be used for inference.
-  Args:
-    images: Images placeholder, from inputs().
-  Returns:
-    softmax_linear: Output tensor with the computed logits.
-  """
-  v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]), activation_function=activation_function)
-  if pruned_vgg:
-      return v.build_pruned_vgg(images)
-  return v.build(images, pooling_type=pooling_type)
+    """Build the model up to where it may be used for inference.
+    Args:
+      images: Images placeholder, from inputs().
+    Returns:
+      softmax_linear: Output tensor with the computed logits.
+    """
+    v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]), activation_function=activation_function)
+    if pruned_vgg:
+        return v.build_pruned_vgg(images)
+    return v.build(images, pooling_type=pooling_type)
 
 
 # FIXME revisar
 def rmse(outputs, targets):
-  return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
+    return tf.sqrt(tf.reduce_mean(squared_error(outputs, targets)))
+
 
 def loss(outputs, targets):
-  """Calculates the loss from the logits and the labels.
-  Args:
-    output:
-    target:
-  Returns:
-    loss: Loss tensor of type float.
-  """
-  return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+    """Calculates the loss from the logits and the labels.
+    Args:
+      output:
+      target:
+    Returns:
+      loss: Loss tensor of type float.
+    """
+    outputs_x, outputs_q = split_x_q(outputs)
+    targets_x, targets_q = split_x_q(targets)
+    x = tf.norm(outputs_x - targets_x)
+    q = tf.norm(targets_q - outputs_q / tf.norm(outputs_q))
+    tf.summary.scalar("x_cost", x)
+    tf.summary.scalar("q_scaled_cost", q)
+    return x + q#tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+
+
+def split_x_q(batch):
+    x = batch[-1, 0:3]
+    q = batch[-1, 3:7]
+    return x, q
+
 
 def loss_(logits, labels):
-  components = tf.Variable([])
-  i = tf.constant(0)
-  while_condition = lambda i, p: tf.less(i, logits.shape[0])
-  def body(i, pred_components):
-    p_matrix = tf.reshape(logits[i], [3, 4])
-    cost = get_cost(p_matrix)
-    res = tf.concat([pred_components, se3_to_components(p_matrix)],0)
-    return i + 1, res
+    components = tf.Variable([])
+    i = tf.constant(0)
+    while_condition = lambda i, p: tf.less(i, logits.shape[0])
 
-  r, pred_components  = tf.while_loop(while_condition, body, [i, components],shape_invariants=[i.get_shape(),
-                                                   tf.TensorShape([None])])
-  return rmse(labels, tf.convert_to_tensor(pred_components)) #+ cost
+    def body(i, pred_components):
+        p_matrix = tf.reshape(logits[i], [3, 4])
+        cost = get_cost(p_matrix)
+        res = tf.concat([pred_components, se3_to_components(p_matrix)], 0)
+        return i + 1, res
+
+    r, pred_components = tf.while_loop(while_condition, body, [i, components], shape_invariants=[i.get_shape(),
+                                                                                                 tf.TensorShape(
+                                                                                                     [None])])
+    return rmse(labels, tf.convert_to_tensor(pred_components))  # + cost
+
 
 def get_cost(pred):
-  r_matrix = pred[:3, :3]
-  n_id = tf.matmul(r_matrix, r_matrix, transpose_b=True)
-  identity = tf.eye(3)
-  alpha = 1
-  return euclidean_distance(n_id, identity) * alpha
+    r_matrix = pred[:3, :3]
+    n_id = tf.matmul(r_matrix, r_matrix, transpose_b=True)
+    identity = tf.eye(3)
+    alpha = 1
+    return euclidean_distance(n_id, identity) * alpha
 
 
 def se3_to_components(se3):
-  #xyzrpy[0:3]
-  xyz = tf.transpose(se3[0:3, 3]) #.transpose()
-  #xyzrpy[3:6] \
-  rpy = so3_to_euler(se3[0:3, 0:3])
+    # xyzrpy[0:3]
+    xyz = tf.transpose(se3[0:3, 3])  # .transpose()
+    # xyzrpy[3:6] \
+    rpy = so3_to_euler(se3[0:3, 0:3])
 
-  return tf.concat([xyz, rpy], 0)
+    return tf.concat([xyz, rpy], 0)
+
 
 def euler_to_so3(rpy):
     """Converts Euler angles to an SO3 rotation matrix.
@@ -102,11 +123,11 @@ def euler_to_so3(rpy):
     """
 
     R_x = tf.stack([tf.stack([1., 0., 0.]),
-                       tf.stack([0., tf.cos(rpy[0]), tf.negative(tf.sin(rpy[0]))]),
-                       tf.stack([0., tf.sin(rpy[0]), tf.cos(rpy[0])])])
+                    tf.stack([0., tf.cos(rpy[0]), tf.negative(tf.sin(rpy[0]))]),
+                    tf.stack([0., tf.sin(rpy[0]), tf.cos(rpy[0])])])
     R_y = tf.stack([tf.stack([tf.cos(rpy[1]), 0., tf.sin(rpy[1])]),
-                       tf.stack([0., 1., 0.]),
-                       tf.stack([tf.negative(tf.sin(rpy[1])), 0., tf.cos(rpy[1])])])
+                    tf.stack([0., 1., 0.]),
+                    tf.stack([tf.negative(tf.sin(rpy[1])), 0., tf.cos(rpy[1])])])
     R_z = tf.stack([tf.stack([tf.cos(rpy[2]), tf.negative(tf.sin(rpy[2])), 0.]),
                     tf.stack([tf.sin(rpy[2]), tf.cos(rpy[2]), 0.]),
                     tf.stack([0., 0., 1.])])
@@ -115,7 +136,7 @@ def euler_to_so3(rpy):
 
 
 def so3_to_euler(so3):
-    #if so3.shape != (3, 3):
+    # if so3.shape != (3, 3):
     #    raise ValueError("SO3 matrix must be 3x3")
     roll = tf.atan2(so3[2, 1], so3[2, 2])
     yaw = tf.atan2(so3[1, 0], so3[0, 0])
@@ -123,49 +144,56 @@ def so3_to_euler(so3):
     pitch_poss = [tf.atan2(-so3[2, 0], denom), tf.atan2(-so3[2, 0], -denom)]
 
     R = euler_to_so3((roll, pitch_poss[0], yaw))
+
     def throw_exc(): print("Error")
-      #raise ValueError("Could not find valid pitch angle")
+
+    # raise ValueError("Could not find valid pitch angle")
     def true_fn(): return tf.stack([roll, pitch_poss[0], yaw])
+
     def false_fn():
-      R = euler_to_so3((roll, pitch_poss[1], yaw))
-      return tf.cond(tf.reduce_sum(tf.subtract(so3, R)) > MATRIX_MATCH_TOLERANCE, lambda: tf.constant([1.]) , lambda: tf.stack([roll, pitch_poss[1], yaw]))
+        R = euler_to_so3((roll, pitch_poss[1], yaw))
+        return tf.cond(tf.reduce_sum(tf.subtract(so3, R)) > MATRIX_MATCH_TOLERANCE, lambda: tf.constant([1.]),
+                       lambda: tf.stack([roll, pitch_poss[1], yaw]))
 
     return tf.cond(tf.reduce_sum(tf.subtract(so3, R)) < MATRIX_MATCH_TOLERANCE, true_fn, false_fn)
 
 
 def euclidean_distance(a, b):
-  return tf.sqrt(tf.reduce_sum(squared_error(a, b)))
+    return tf.sqrt(tf.reduce_sum(squared_error(a, b)))
+
 
 def mse_norm(outputs, targets, variance):
-  return tf.reduce_mean(tf.reduce_mean(squared_error(outputs, targets), axis=0) / variance)
+    return tf.reduce_mean(tf.reduce_mean(squared_error(outputs, targets), axis=0) / variance)
+
 
 def squared_error(a, b):
     return tf.square(tf.subtract(a, b))
 
 
 def training(loss, learning_rate):
-  """Sets up the training Ops.
-  Creates a summarizer to track the loss over time in TensorBoard.
-  Creates an optimizer and applies the gradients to all trainable variables.
-  The Op returned by this function is what must be passed to the
-  `sess.run()` call to cause the model to train.
-  Args:
-    loss: Loss tensor, from loss().
-    learning_rate: The learning rate to use for gradient descent.
-  Returns:
-    train_op: The Op for training.
-  """
-  # Add a scalar summary for the snapshot loss.
-  tf.summary.scalar('loss', loss)
+    """Sets up the training Ops.
+    Creates a summarizer to track the loss over time in TensorBoard.
+    Creates an optimizer and applies the gradients to all trainable variables.
+    The Op returned by this function is what must be passed to the
+    `sess.run()` call to cause the model to train.
+    Args:
+      loss: Loss tensor, from loss().
+      learning_rate: The learning rate to use for gradient descent.
+    Returns:
+      train_op: The Op for training.
+    """
+    # Add a scalar summary for the snapshot loss.
+    tf.summary.scalar('loss', loss)
 
-  optimizer = tf.train.AdamOptimizer(learning_rate)
-  # Create a variable to track the global step.
-  global_step = tf.Variable(0, name='global_step', trainable=False)
-  # Use the optimizer to apply the gradients that minimize the loss
-  # (and also increment the global step counter) as a single training step.
-  tf.summary.scalar('learning_rate', learning_rate)
-  train_op = optimizer.minimize(loss, global_step=global_step)
-  return train_op
+    optimizer = tf.train.AdamOptimizer(learning_rate)
+    # Create a variable to track the global step.
+    global_step = tf.Variable(0, name='global_step', trainable=False)
+    # Use the optimizer to apply the gradients that minimize the loss
+    # (and also increment the global step counter) as a single training step.
+    tf.summary.scalar('learning_rate', learning_rate)
+    train_op = optimizer.minimize(loss, global_step=global_step)
+    return train_op
+
 
 # Deprecated
 def evaluation(outputs, targets):

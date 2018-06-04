@@ -38,7 +38,7 @@ import tensorflow as tf
 import numpy as np
 import numpy.matlib as matlib
 from transform import se3_to_components
-
+import transformations
 # Basic model parameters as external flags.
 FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
@@ -150,22 +150,31 @@ def do_evaluation(sess,
         for i in xrange(batch_size):
             assert init + i < end
             index = init + i
-            current_prediction = prediction[i].reshape(rows_reshape, columns_reshape)
+            #current_prediction = prediction[i].reshape(rows_reshape, columns_reshape)
             # P = K * [R|t] => [R|t] = K^(-1) * P
-            curr_pred_transform_matrix = inv_k_matrix * current_prediction
-            current_target = target[i].reshape(rows_reshape, columns_reshape)
-            curr_target_transform_matrix = inv_k_matrix * current_target
+            #curr_pred_transform_matrix = inv_k_matrix * current_prediction
+            #current_target = target[i].reshape(rows_reshape, columns_reshape)
+            #curr_target_transform_matrix = inv_k_matrix * current_target
             # Get the closest rotation matrix
-            u, _ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
+            #u, _ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
             # Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
-            closest_curr_pred_s3_matrix = matlib.identity(4)
-            closest_curr_pred_s3_matrix[0:3, 0:3] = u
-            closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3, 3]
-            curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0, 0, 0, 1]]], axis=0)
+            #closest_curr_pred_s3_matrix = matlib.identity(4)
+            #closest_curr_pred_s3_matrix[0:3, 0:3] = u
+            #closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3, 3]
+            #curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0, 0, 0, 1]]], axis=0)
             # From [R|t] matrix to components
             # components = [x,y,z, roll, pitch, yaw]
-            curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
-            curr_target_components = se3_to_components(curr_target_s3_matrix)
+            #curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
+            #curr_target_components = se3_to_components(curr_target_s3_matrix)
+
+            current_prediction = prediction[i]
+            euler = transformations.euler_from_quaternion(current_prediction[3:7])
+            curr_pred_components = np.hstack((current_prediction[0:3],euler))
+            current_target = target[i]
+            euler = transformations.euler_from_quaternion(current_target[3:7])
+            curr_target_components = np.hstack((current_target[0:3], euler))
+
+
             curr_squared_error = np.square(curr_pred_components - curr_target_components)
             squared_errors += curr_squared_error
             # prediction_matrix[index] = curr_pred_components
@@ -174,8 +183,8 @@ def do_evaluation(sess,
     print("---------------------------------------------------------")
     print("Prediction")
     print(current_prediction)
-    print("Prediction (closest [R|t])")
-    print(closest_curr_pred_s3_matrix)
+    #print("Prediction (closest [R|t])")
+    #print(closest_curr_pred_s3_matrix)
     print("Target")
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
@@ -239,7 +248,7 @@ def run_training():
         # train_targets_variance = np.var(data_sets.train.labels, axis=0)
         # (X- np.mean(X, axis=0)) / np.std(X,axis=0) #Guardar la media y el std para volver a los valores originales
 
-        standardize_targets = True
+        standardize_targets = False
         # Add to the Graph the Ops for loss calculation.
         loss = model.loss(outputs, labels_placeholder)
 
