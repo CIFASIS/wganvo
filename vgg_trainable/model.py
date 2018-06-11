@@ -61,16 +61,22 @@ def loss(outputs, targets):
     """
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
-    x = tf.norm(outputs_x - targets_x)
-    q = tf.norm(targets_q - outputs_q / tf.norm(outputs_q))
+    print(outputs_x.shape)
+    print(targets_x.shape)
+    x = tf.reduce_mean(tf.norm(outputs_x - targets_x, axis=1))
+    absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
+    q_norm = tf.norm(outputs_q, axis=1)
+    q = 100 * tf.reduce_mean(tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1,1)), axis=1))
     tf.summary.scalar("x_cost", x)
+    tf.summary.scalar("abs_x_cost", absolute_x)
     tf.summary.scalar("q_scaled_cost", q)
     return x + q#tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 
 def split_x_q(batch):
-    x = batch[-1, 0:3]
-    q = batch[-1, 3:7]
+    print(batch.shape)
+    x = batch[:, 0:3]
+    q = batch[:, 3:7]
     return x, q
 
 

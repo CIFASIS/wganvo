@@ -27,9 +27,9 @@ from scipy import linalg
 # from ... import transform
 import sys, os, inspect
 
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir)
+#currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+#parentdir = os.path.dirname(currentdir)
+#sys.path.insert(0, parentdir)
 # import sys
 # from os import path
 # sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
@@ -391,6 +391,10 @@ def main(_):
 
 
 if __name__ == '__main__':
+    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    parentdir = os.path.dirname(currentdir)
+    sys.path.insert(0, parentdir)
+
     import input_data
     import model
     from array_utils import load
