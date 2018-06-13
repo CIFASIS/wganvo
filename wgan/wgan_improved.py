@@ -258,7 +258,7 @@ def FCGenerator(n_samples, noise=None, FC_DIM=512):
     return output
 
 
-def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.relu, is_train=None, update_mov=None, stats_iter=None):
+def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.relu):
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
@@ -269,22 +269,22 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
     output = lib.ops.linear.Linear('Generator.Input', 128, 4 * 4 * 8 * dim, noise)
     output = tf.reshape(output, [-1, 8 * dim, 4, 4])
     if bn:
-        output = lib.ops.batchnorm.Batchnorm('Generator.BN1', [0, 2, 3], output, is_training=is_train, update_moving_stats=update_mov, stats_iter=stats_iter)#Normalize('Generator.BN1', [0, 2, 3], output)
+        output = Normalize('Generator.BN1', [0, 2, 3], output)
     output = nonlinearity(output)
 
     output = lib.ops.deconv2d.Deconv2D('Generator.2', 8 * dim, 4 * dim, 5, output)
     if bn:
-        output = lib.ops.batchnorm.Batchnorm('Generator.BN2', [0, 2, 3], output, is_training=is_train, update_moving_stats=update_mov, stats_iter=stats_iter)
+        output = Normalize('Generator.BN2', [0, 2, 3], output)
     output = nonlinearity(output)
 
     output = lib.ops.deconv2d.Deconv2D('Generator.3', 4 * dim, 2 * dim, 5, output)
     if bn:
-        output = lib.ops.batchnorm.Batchnorm('Generator.BN3', [0, 2, 3], output, is_training=is_train, update_moving_stats=update_mov, stats_iter=stats_iter)
+        output = Normalize('Generator.BN3', [0, 2, 3], output)
     output = nonlinearity(output)
 
     output = lib.ops.deconv2d.Deconv2D('Generator.4', 2 * dim, dim, 5, output)
     if bn:
-        output = lib.ops.batchnorm.Batchnorm('Generator.BN4', [0, 2, 3], output, is_training=is_train, update_moving_stats=update_mov, stats_iter=stats_iter)
+        output = Normalize('Generator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
     output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, 6, 5, output)
@@ -498,9 +498,6 @@ def vo_cost_function(outputs, targets):
 
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
-        is_train = tf.placeholder(tf.bool, name="is_train")
-        update_mov = tf.placeholder(tf.bool, name="update_mov")
-        stats_iter = tf.placeholder(tf.int32, name="stats_iter")
         Generator, Discriminator = GeneratorAndDiscriminator()
         all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, 2], name="images_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
@@ -508,7 +505,7 @@ def run(args):
         real_data = tf.reshape(all_real_data_conv, [args.batch_size,
                                                     IMAGE_HEIGHT * IMAGE_WIDTH * 2])  # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
         #           [args.batch_size / len(DEVICES), OUTPUT_DIM])
-        fake_data = Generator(args.batch_size, is_train=is_train, update_mov=update_mov, stats_iter=stats_iter)
+        fake_data = Generator(args.batch_size)
         disc_real, disc_real_vo = Discriminator(real_data)
         disc_fake, _ = Discriminator(fake_data)
         disc_real_vo = tf.identity(disc_real_vo, name="outputs")
@@ -703,9 +700,6 @@ def run(args):
                                                True,
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
-                    feed_dict[is_train] = False
-                    feed_dict[update_mov] = False
-                    feed_dict[stats_iter] = 0
                     # _data = gen.next()
                     _disc_cost, _disc_vo_cost, _, _ = session.run(
                         [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
