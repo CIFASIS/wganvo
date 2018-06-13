@@ -499,7 +499,8 @@ def vo_cost_function(outputs, targets):
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
-        all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, 2], name="images_placeholder")
+        all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, 2],
+                                            name="images_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
         real_data = tf.reshape(all_real_data_conv, [args.batch_size,
@@ -627,9 +628,11 @@ def run(args):
 
         def generate_image(iteration):
             samples = session.run(all_fixed_noise_samples)
-            samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
+            # samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
             # FIXME resolucion
-            # lib.save_images.save_images(samples.reshape((args.batch_size, 3, 64, 64)), 'samples_{}.png'.format(iteration))
+            samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
+            print(samples[0,0,...])
+            #lib.save_images.save_images(samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH)), 'samples_{}.png'.format(iteration))
 
         # Dataset iterator
         # train_gen, dev_gen = lib.small_imagenet.load(args.batch_size, data_dir=DATA_DIR)
@@ -711,15 +714,15 @@ def run(args):
                 lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
 
-                if iteration % 200 == 199:
-                    t = time.time()
-                    dev_disc_costs = []
-                    # for (images,) in dev_gen():
-                    #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
-                    #    dev_disc_costs.append(_dev_disc_cost)
-                    # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
+                # if iteration % 200 == 199:
+                # t = time.time()
+                # dev_disc_costs = []
+                # for (images,) in dev_gen():
+                #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
+                #    dev_disc_costs.append(_dev_disc_cost)
+                # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    # generate_image(iteration) TODO Por ahora no
+                # generate_image(iteration)
 
                 if iteration % 100 == 0:
                     duration = time.time() - start_time
@@ -733,6 +736,14 @@ def run(args):
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
+                    t = time.time()
+                    # dev_disc_costs = []
+                    # for (images,) in dev_gen():
+                    #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
+                    #    dev_disc_costs.append(_dev_disc_cost)
+                    # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
+
+                    generate_image(iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
