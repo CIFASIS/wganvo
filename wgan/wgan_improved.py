@@ -24,6 +24,7 @@ import tflib.plot
 
 from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
+from vgg_trainable.model import loss
 from array_utils import load
 
 # Download 64x64 ImageNet at http://image-net.org/small/download.php and
@@ -518,7 +519,7 @@ def run(args):
         elif MODE == 'wgan-gp':
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-            disc_vo_cost = vo_cost_function(disc_real_vo, vo_targets)
+            disc_vo_cost = loss(disc_real_vo, vo_targets)
             tf.summary.scalar('gen_cost', gen_cost)
             tf.summary.scalar('disc_cost', disc_cost)
             tf.summary.scalar('vo_cost', disc_vo_cost)
@@ -626,13 +627,12 @@ def run(args):
         else:
             all_fixed_noise_samples = tf.concat(0, all_fixed_noise_samples)
 
-        def generate_image(iteration):
+        def generate_image(path, iteration):
             samples = session.run(all_fixed_noise_samples)
-            # samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
-            # FIXME resolucion
+            samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
             samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
-            print(samples[0,0,...])
-            #lib.save_images.save_images(samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH)), 'samples_{}.png'.format(iteration))
+            lib.save_images.save_pair_images(samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH)), path,
+                                             iteration)
 
         # Dataset iterator
         # train_gen, dev_gen = lib.small_imagenet.load(args.batch_size, data_dir=DATA_DIR)
@@ -736,14 +736,14 @@ def run(args):
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
-                    t = time.time()
+                    # t = time.time()
                     # dev_disc_costs = []
                     # for (images,) in dev_gen():
                     #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
                     #    dev_disc_costs.append(_dev_disc_cost)
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    generate_image(iteration)
+                    generate_image(curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
