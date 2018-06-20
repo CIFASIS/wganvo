@@ -504,9 +504,12 @@ def run(args):
                                             name="images_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
-        real_data = tf.reshape(all_real_data_conv, [args.batch_size,
-                                                    IMAGE_HEIGHT * IMAGE_WIDTH * 2])  # tf.reshape(2 * ((tf.cast(real_data_conv, tf.float32) / 255.) - .5),
-        #           [args.batch_size / len(DEVICES), OUTPUT_DIM])
+        # real_data = tf.reshape(all_real_data_conv, [args.batch_size,
+        #                                            IMAGE_HEIGHT * IMAGE_WIDTH * 2]) 
+        
+        # Normalize to [-1, 1]
+        # Esto es porque la salida del Generator devuelve valores en [-1, 1] (la ultima capa es una tanh)
+        real_data = tf.reshape(2 * ((tf.cast(all_real_data_conv, tf.float32) / 255.) - .5), [args.batch_size , IMAGE_HEIGHT * IMAGE_WIDTH * 2])
         fake_data = Generator(args.batch_size)
         disc_real, disc_real_vo = Discriminator(real_data)
         disc_fake, _ = Discriminator(fake_data)
