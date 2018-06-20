@@ -522,10 +522,10 @@ def run(args):
         elif MODE == 'wgan-gp':
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-            disc_vo_cost = loss(disc_real_vo, vo_targets)
+            #disc_vo_cost = loss(disc_real_vo, vo_targets)
             tf.summary.scalar('gen_cost', gen_cost)
             tf.summary.scalar('disc_cost', disc_cost)
-            tf.summary.scalar('vo_cost', disc_vo_cost)
+            #tf.summary.scalar('vo_cost', disc_vo_cost)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -591,10 +591,10 @@ def run(args):
                                                                                                      var_list=lib.params_with_name(
                                                                                                          'Discriminator.'),
                                                                                                      colocate_gradients_with_ops=True)
-            disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
-                                                                                                        var_list=lib.params_with_name(
-                                                                                                            'Discriminator.'),
-                                                                                                        colocate_gradients_with_ops=True)
+            #disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
+            #                                                                                            var_list=lib.params_with_name(
+            #                                                                                                'Discriminator.'),
+            #                                                                                            colocate_gradients_with_ops=True)
 
         elif MODE == 'dcgan':
             gen_train_op = tf.train.AdamOptimizer(learning_rate=2e-4, beta1=0.5).minimize(gen_cost,
@@ -682,6 +682,7 @@ def run(args):
             # Instantiate a SummaryWriter to output summaries and the Graph.
             summary_writer = tf.summary.FileWriter(curr_fold_log_dir, session.graph)
             best_validation_performance = 1000000.
+            last_improvement = 0
             session.run(init)
 
             # gen = inf_train_gen()
@@ -707,14 +708,14 @@ def run(args):
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
                     # _data = gen.next()
-                    _disc_cost, _disc_vo_cost, _, _ = session.run(
-                        [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
+                    _disc_cost, _ = session.run(
+                        [disc_cost, disc_train_op], feed_dict=feed_dict)
 
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
                 lib.plot.plot('train disc cost', _disc_cost)
-                lib.plot.plot('train vo cost', _disc_vo_cost)
+                #lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
 
                 # if iteration % 200 == 199:
@@ -730,7 +731,7 @@ def run(args):
                 if iteration % 100 == 0:
                     duration = time.time() - start_time
                     # Print status to stdout.
-                    print('Step %d: loss = %.2f (%.3f sec)' % (iteration, _disc_vo_cost, duration))
+                    #print('Step %d: loss = %.2f (%.3f sec)' % (iteration, _disc_vo_cost, duration))
                     # Update the events file.
                     summary_str = session.run(summary, feed_dict=feed_dict)
                     summary_writer.add_summary(summary_str, iteration)
@@ -749,53 +750,53 @@ def run(args):
                     generate_image(curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
-                    train_rmse, train_mse, train_norm_mse = do_evaluation(session,
-                                                                          disc_real_vo,
-                                                                          all_real_data_conv,
-                                                                          vo_targets,
-                                                                          train_dataset,
-                                                                          args.batch_size,
-                                                                          intrinsic_matrix,
-                                                                          standardize_targets)
-                    add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, iteration)
-                    add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
-                    add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, iteration)
+                    #train_rmse, train_mse, train_norm_mse = do_evaluation(session,
+                    #                                                      disc_real_vo,
+                    #                                                      all_real_data_conv,
+                    #                                                      vo_targets,
+                    #                                                      train_dataset,
+                    #                                                      args.batch_size,
+                    #                                                      intrinsic_matrix,
+                    #                                                      standardize_targets)
+                    #add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, iteration)
+                    #add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
+                    #add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, iteration)
                     # Evaluate against the validation set.
-                    print('Validation Data Eval:')
-                    validation_rmse, validation_mse, validation_norm_mse = do_evaluation(session,
-                                                                                         disc_real_vo,
-                                                                                         all_real_data_conv,
-                                                                                         vo_targets,
-                                                                                         DataSet(
-                                                                                             train_images[
-                                                                                                 validation_indexs],
-                                                                                             train_targets[
-                                                                                                 validation_indexs]),
-                                                                                         args.batch_size,
-                                                                                         intrinsic_matrix,
-                                                                                         standardize_targets)
-                    add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, iteration)
-                    add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
-                    add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, iteration)
+                    #print('Validation Data Eval:')
+                    #validation_rmse, validation_mse, validation_norm_mse = do_evaluation(session,
+                    #                                                                     disc_real_vo,
+                    #                                                                     all_real_data_conv,
+                    #                                                                     vo_targets,
+                    #                                                                     DataSet(
+                    #                                                                         train_images[
+                    #                                                                             validation_indexs],
+                    #                                                                         train_targets[
+                    #                                                                             validation_indexs]),
+                    #                                                                     args.batch_size,
+                    #                                                                     intrinsic_matrix,
+                    #                                                                     standardize_targets)
+                    #add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, iteration)
+                    #add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
+                    #add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, iteration)
                     # Evaluate against the test set.
-                    print('Test Data Eval:')
-                    test_rmse, test_mse, test_norm_mse = do_evaluation(session,
-                                                                       disc_real_vo,
-                                                                       all_real_data_conv,
-                                                                       vo_targets,
-                                                                       test_dataset,
-                                                                       args.batch_size,
-                                                                       test_intrinsic_matrix,
-                                                                       standardize_targets)
-                    add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, iteration)
-                    add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
-                    add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, iteration)
+                    #print('Test Data Eval:')
+                    #test_rmse, test_mse, test_norm_mse = do_evaluation(session,
+                    #                                                   disc_real_vo,
+                    #                                                   all_real_data_conv,
+                    #                                                   vo_targets,
+                    #                                                   test_dataset,
+                    #                                                   args.batch_size,
+                    #                                                   test_intrinsic_matrix,
+                    #                                                   standardize_targets)
+                    #add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, iteration)
+                    #add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
+                    #add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, iteration)
                     # Keep the best model
-                    if validation_rmse < best_validation_performance:
-                        best_validation_performance = validation_rmse
-                        last_improvement = iteration
-                        checkpoint_file = os.path.join(curr_fold_log_dir, 'wgan-model')
-                        saver.save(session, checkpoint_file, global_step=iteration)
+                    #if validation_rmse < best_validation_performance:
+                    #    best_validation_performance = validation_rmse
+                    #    last_improvement = iteration
+                    #    checkpoint_file = os.path.join(curr_fold_log_dir, 'wgan-model')
+                    #    saver.save(session, checkpoint_file, global_step=iteration)
                     if iteration - last_improvement > require_improvement and args.early_stopping:
                         print(
                             "No improvement found in a while, stopping optimization. Last improvement = step %d" % (
