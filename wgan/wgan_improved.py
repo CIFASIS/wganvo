@@ -634,7 +634,7 @@ def run(args):
             samples = session.run(all_fixed_noise_samples)
             samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
             samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
-            lib.save_images.save_pair_images(samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH)), path,
+            lib.save_images.save_pair_images(samples, path,
                                              iteration)
 
         # Dataset iterator
