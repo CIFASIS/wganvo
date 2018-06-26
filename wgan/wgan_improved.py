@@ -502,7 +502,7 @@ def vo_cost_function(outputs, targets):
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
-        # data format = NHWC porque para vgg se hizo así (usan los mismos métodos para la carga de datos)
+        # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
         # Mediante tf.transpose se pasa a NCHW cuando se necesite (Discriminator por ej. toma la entrada como NCHW)
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
