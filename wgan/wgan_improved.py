@@ -35,7 +35,7 @@ from array_utils import load
 
 MODE = 'wgan-gp'  # dcgan, wgan, wgan-gp, lsgan
 DIM = 64  # Model dimensionality
-CRITIC_ITERS = 5  # How many iterations to train the critic for
+CRITIC_ITERS = 1  # How many iterations to train the critic for
 N_GPUS = 1  # Number of GPUs
 # BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
 # ITERS = 200000  # How many iterations to train for
@@ -520,11 +520,11 @@ def run(args):
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
 
         elif MODE == 'wgan-gp':
-            gen_cost = -tf.reduce_mean(disc_fake)
-            disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
+            #gen_cost = -tf.reduce_mean(disc_fake)
+            #disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             disc_vo_cost = loss(disc_real_vo, vo_targets)
-            tf.summary.scalar('gen_cost', gen_cost)
-            tf.summary.scalar('disc_cost', disc_cost)
+            #tf.summary.scalar('gen_cost', gen_cost)
+            #tf.summary.scalar('disc_cost', disc_cost)
             tf.summary.scalar('vo_cost', disc_vo_cost)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
@@ -536,7 +536,7 @@ def run(args):
             gradients = tf.gradients(Discriminator(interpolates), [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-            disc_cost += LAMBDA * gradient_penalty
+            #disc_cost += LAMBDA * gradient_penalty
 
         elif MODE == 'dcgan':
             try:  # tf pre-1.0 (bottom) vs 1.0 (top)
@@ -583,14 +583,14 @@ def run(args):
 
         elif MODE == 'wgan-gp':
             # con var_list le indicamos los parametros (pesos) que queremos actualizar, en el primer caso los del Generator, en el segundo caso los del Disc
-            gen_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(gen_cost,
-                                                                                                    var_list=lib.params_with_name(
-                                                                                                        'Generator'),
-                                                                                                    colocate_gradients_with_ops=True)
-            disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
-                                                                                                     var_list=lib.params_with_name(
-                                                                                                         'Discriminator.'),
-                                                                                                     colocate_gradients_with_ops=True)
+            #gen_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(gen_cost,
+            #                                                                                        var_list=lib.params_with_name(
+            #                                                                                            'Generator'),
+            #                                                                                        colocate_gradients_with_ops=True)
+            #disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
+            #                                                                                         var_list=lib.params_with_name(
+            #                                                                                             'Discriminator.'),
+            #                                                                                         colocate_gradients_with_ops=True)
             disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
                                                                                                         var_list=lib.params_with_name(
                                                                                                             'Discriminator.'),
@@ -690,8 +690,8 @@ def run(args):
                 start_time = time.time()
 
                 # Train generator
-                if iteration > 0:
-                    _ = session.run(gen_train_op)
+                #if iteration > 0:
+                #    _ = session.run(gen_train_op)
 
                 # Train critic and VO
                 if (MODE == 'dcgan') or (MODE == 'lsgan'):
@@ -707,14 +707,14 @@ def run(args):
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
                     # _data = gen.next()
-                    _disc_cost, _disc_vo_cost, _, _ = session.run(
-                        [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
+                    _disc_vo_cost, _ = session.run(
+                        [disc_vo_cost, disc_vo_train_op], feed_dict=feed_dict)
 
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
-                lib.plot.plot('train disc cost', _disc_cost)
-                lib.plot.plot('train vo cost', _disc_vo_cost)
+                #lib.plot.plot('train disc cost', _disc_cost)
+                #lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
 
                 # if iteration % 200 == 199:
@@ -746,7 +746,7 @@ def run(args):
                     #    dev_disc_costs.append(_dev_disc_cost)
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    generate_image(curr_fold_log_dir, iteration)
+                    #generate_image(curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
