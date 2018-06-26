@@ -40,6 +40,7 @@ N_GPUS = 1  # Number of GPUs
 # BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
 # ITERS = 200000  # How many iterations to train for
 LAMBDA = 10  # Gradient penalty lambda hyperparameter
+IMAGE_CHANNELS = 2
 OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
 
 lib.print_model_settings(locals().copy())
@@ -263,12 +264,13 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
-
+    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64
+    height = IMAGE_HEIGHT / 16
     if noise is None:
         noise = tf.random_normal([n_samples, 128])
 
-    output = lib.ops.linear.Linear('Generator.Input', 128, 4 * 4 * 8 * dim, noise)
-    output = tf.reshape(output, [-1, 8 * dim, 4, 4])
+    output = lib.ops.linear.Linear('Generator.Input', 128, width * height * 8 * dim, noise)
+    output = tf.reshape(output, [-1, 8 * dim, height, width])
     if bn:
         output = Normalize('Generator.BN1', [0, 2, 3], output)
     output = nonlinearity(output)
@@ -288,14 +290,14 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
         output = Normalize('Generator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, 6, 5, output)
+    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, IMAGE_CHANNELS, 5, output)
     output = tf.tanh(output)
-
+    print(output.shape)
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output, [-1, 2 * IMAGE_WIDTH * IMAGE_HEIGHT])
+    return tf.reshape(output, [-1, IMAGE_CHANNELS * IMAGE_WIDTH * IMAGE_HEIGHT])
 
 
 def WGANPaper_CrippledDCGANGenerator(n_samples, noise=None, dim=DIM):
@@ -459,12 +461,13 @@ def FCDiscriminator(inputs, FC_DIM=512, n_layers=3):
 
 
 def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
-    output = tf.reshape(inputs, [-1, 2, IMAGE_HEIGHT, IMAGE_WIDTH])
+    output = tf.reshape(inputs, [-1, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH])
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
-
-    output = lib.ops.conv2d.Conv2D('Discriminator.1', 2, dim, 5, output, stride=2)
+    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
+    height = IMAGE_HEIGHT / 16
+    output = lib.ops.conv2d.Conv2D('Discriminator.1', IMAGE_CHANNELS, dim, 5, output, stride=2)
     output = nonlinearity(output)
 
     output = lib.ops.conv2d.Conv2D('Discriminator.2', dim, 2 * dim, 5, output, stride=2)
@@ -482,10 +485,9 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
         output = Normalize('Discriminator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output1 = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
-    output2 = tf.reshape(output, [-1, IMAGE_HEIGHT * IMAGE_WIDTH * 2])
-    output_disc = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output1)
-    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', IMAGE_HEIGHT * IMAGE_WIDTH * 2, LABELS_SIZE, output2)
+    output = tf.reshape(output, [-1, height * width * 8 * dim])
+    output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
+    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
@@ -500,18 +502,23 @@ def vo_cost_function(outputs, targets):
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
-        all_real_data_conv = tf.placeholder(tf.float32, shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, 2],
+        # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
+        # Mediante tf.transpose se pasa a NCHW cuando se necesite (Discriminator por ej. toma la entrada como NCHW)
+        all_real_data_conv = tf.placeholder(tf.float32,
+                                            shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
         # real_data = tf.reshape(all_real_data_conv, [args.batch_size,
         #                                            IMAGE_HEIGHT * IMAGE_WIDTH * 2]) 
-        
+
         # Normalize to [-1, 1]
         # Esto es porque la salida del Generator devuelve valores en [-1, 1] (la ultima capa es una tanh)
-        real_data = tf.reshape(2 * ((tf.cast(all_real_data_conv, tf.float32) / 255.) - .5), [args.batch_size , IMAGE_HEIGHT * IMAGE_WIDTH * 2])
+        real_norm_data = 2 * ((tf.cast(all_real_data_conv, tf.float32) / 255.) - .5)
+        real_data = tf.reshape(real_norm_data,
+                               [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
-        disc_real, disc_real_vo = Discriminator(real_data)
+        disc_real, disc_real_vo = Discriminator(tf.transpose(real_norm_data, [0, 3, 1, 2])) # NHWC to NCHW
         disc_fake, _ = Discriminator(fake_data)
         disc_real_vo = tf.identity(disc_real_vo, name="outputs")
 
@@ -621,14 +628,7 @@ def run(args):
 
         # For generating samples
         fixed_noise = tf.constant(np.random.normal(size=(args.batch_size, 128)).astype('float32'))
-        all_fixed_noise_samples = []
-        n_samples = args.batch_size
-        all_fixed_noise_samples.append(
-            Generator(n_samples, noise=fixed_noise[0: n_samples]))
-        if tf.__version__.startswith('1.'):
-            all_fixed_noise_samples = tf.concat(all_fixed_noise_samples, axis=0)
-        else:
-            all_fixed_noise_samples = tf.concat(0, all_fixed_noise_samples)
+        all_fixed_noise_samples = Generator(args.batch_size, noise=fixed_noise)
 
         def generate_image(path, iteration):
             samples = session.run(all_fixed_noise_samples)
