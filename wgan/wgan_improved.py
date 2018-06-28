@@ -540,7 +540,8 @@ def run(args):
             )
             differences = fake_data - real_data
             interpolates = real_data + (alpha * differences)
-            gradients = tf.gradients(Discriminator(interpolates), [interpolates])[0]
+            disc_interp, _ = Discriminator(interpolates)
+            gradients = tf.gradients(disc_interp, [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
             #disc_cost += LAMBDA * gradient_penalty
