@@ -487,12 +487,12 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
 
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
-    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
+    #output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output_disc, [-1]), output_vo
+    return tf.reshape(output_disc, [-1])#, output_vo
 
 
 def vo_cost_function(outputs, targets):
@@ -518,9 +518,9 @@ def run(args):
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
 
-        disc_real, disc_real_vo = Discriminator(real_data)
-        disc_fake, _ = Discriminator(fake_data)
-        disc_real_vo = tf.identity(disc_real_vo, name="outputs")
+        disc_real = Discriminator(real_data)
+        disc_fake = Discriminator(fake_data)
+        #disc_real_vo = tf.identity(disc_real_vo, name="outputs")
 
         if MODE == 'wgan':
             gen_cost = -tf.reduce_mean(disc_fake)
@@ -537,7 +537,7 @@ def run(args):
             )
             differences = fake_data - real_data
             interpolates = real_data + (alpha * differences)
-            disc_interp, _ = Discriminator(interpolates)
+            disc_interp = Discriminator(interpolates)
             gradients = tf.gradients(disc_interp, [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
