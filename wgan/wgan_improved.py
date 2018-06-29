@@ -292,7 +292,7 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
 
     output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, IMAGE_CHANNELS, 5, output)
     output = tf.tanh(output)
-    print(output.shape)
+
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
@@ -503,22 +503,22 @@ def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
         # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
-        # Mediante tf.transpose se pasa a NCHW cuando se necesite (Discriminator por ej. toma la entrada como NCHW)
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
-        # real_data = tf.reshape(all_real_data_conv, [args.batch_size,
-        #                                            IMAGE_HEIGHT * IMAGE_WIDTH * 2]) 
+        # Mediante tf.transpose se pasa a NCHW
+        transposed_all_real_data_conv = tf.transpose(all_real_data_conv, [0, 3, 1, 2])
 
         # Normalize to [-1, 1]
         # Esto es porque la salida del Generator devuelve valores en [-1, 1] (la ultima capa es una tanh)
-        real_norm_data = 2 * ((tf.cast(all_real_data_conv, tf.float32) / 255.) - .5)
+        real_norm_data = 2 * ((tf.cast(transposed_all_real_data_conv, tf.float32) / 255.) - .5)
         real_data = tf.reshape(real_norm_data,
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
-        disc_real, disc_real_vo = Discriminator(tf.transpose(real_norm_data, [0, 3, 1, 2])) # NHWC to NCHW
+
+        disc_real, disc_real_vo = Discriminator(real_data)
         disc_fake, _ = Discriminator(fake_data)
         disc_real_vo = tf.identity(disc_real_vo, name="outputs")
 
