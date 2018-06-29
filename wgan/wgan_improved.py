@@ -530,9 +530,6 @@ def run(args):
             #gen_cost = -tf.reduce_mean(disc_fake)
             #disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             disc_vo_cost = loss(disc_real_vo, vo_targets)
-            #tf.summary.scalar('gen_cost', gen_cost)
-            #tf.summary.scalar('disc_cost', disc_cost)
-            tf.summary.scalar('vo_cost', disc_vo_cost)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -545,6 +542,7 @@ def run(args):
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
             #disc_cost += LAMBDA * gradient_penalty
+            tf.summary.scalar('vo_cost', disc_vo_cost)
 
         elif MODE == 'dcgan':
             try:  # tf pre-1.0 (bottom) vs 1.0 (top)
