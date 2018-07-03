@@ -646,11 +646,11 @@ def run(args):
         #        for (images,) in train_gen():
         #            yield images
 
-        # Save a batch of ground-truth samples
-        # _x = inf_train_gen().next()
-        # _x_r = session.run(real_data, feed_dict={real_data_conv: _x[:args.batch_size/N_GPUS]})
-        # _x_r = ((_x_r+1.)*(255.99/2)).astype('int32')
-        # lib.save_images.save_images(_x_r.reshape((args.batch_size/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png') TODO por ahora no
+        def save_gt_image(batch, path, iteration):
+            # Save a batch of ground-truth samples
+            _x_r = session.run(real_data, feed_dict={all_real_data_conv: batch})
+            _x_r = ((_x_r+1.)*(255.99/2)).astype('int32')
+            lib.save_images.save_pair_images(_x_r.reshape((args.batch_size/N_GPUS, 3, 64, 64)), path, iteration)
 
 
         kfold = 5
@@ -737,6 +737,7 @@ def run(args):
                     summary_writer.add_summary(summary_str, iteration)
                     summary_writer.flush()
                 if (iteration < 5) or (iteration % 200 == 199):
+                    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
