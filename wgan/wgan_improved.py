@@ -737,7 +737,7 @@ def run(args):
                     summary_writer.add_summary(summary_str, iteration)
                     summary_writer.flush()
                 if (iteration < 5) or (iteration % 200 == 199):
-                    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
+                    save_gt_image(feed_dict[all_real_data_conv], os.path.join(curr_fold_log_dir, "gt"), iteration)
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
