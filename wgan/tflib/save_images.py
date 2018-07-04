@@ -42,12 +42,13 @@ def save_images(X, save_path):
 
 
 # Guarda imgs individuales
-def save_pair_images(X, save_path, iteration):
+def save_pair_images(X, save_path, iteration, prefix='samples'):
     # BCHW
     assert X.ndim == 4
 
     n_samples = X.shape[0]
     idx = randrange(n_samples)
     pair = X[idx]
-    imsave(os.path.join(save_path, 'samples_{}_{}.png'.format(iteration, 0)), pair[0, ...])
-    imsave(os.path.join(save_path, 'samples_{}_{}.png'.format(iteration, 1)), pair[1, ...])
+    img_name = prefix + '_{}_{}.png'
+    imsave(os.path.join(save_path, img_name.format(iteration, 0)), pair[0, ...])
+    imsave(os.path.join(save_path, img_name.format(iteration, 1)), pair[1, ...])

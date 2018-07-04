@@ -503,6 +503,7 @@ def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
         # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
+        # Las imagenes se cargan como arrays en [0, 1]
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
@@ -511,9 +512,9 @@ def run(args):
         # Mediante tf.transpose se pasa a NCHW
         transposed_all_real_data_conv = tf.transpose(all_real_data_conv, [0, 3, 1, 2])
 
-        # Normalize to [-1, 1]
+        # Rescale from [0, 1] to [-1, 1]
         # Esto es porque la salida del Generator devuelve valores en [-1, 1] (la ultima capa es una tanh)
-        real_norm_data = 2 * ((tf.cast(transposed_all_real_data_conv, tf.float32) / 255.) - .5)
+        real_norm_data = 2 * (tf.cast(transposed_all_real_data_conv, tf.float32) - .5)
         real_data = tf.reshape(real_norm_data,
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
@@ -527,8 +528,8 @@ def run(args):
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
 
         elif MODE == 'wgan-gp':
-            #gen_cost = -tf.reduce_mean(disc_fake)
-            #disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
+            # gen_cost = -tf.reduce_mean(disc_fake)
+            # disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             disc_vo_cost = loss(disc_real_vo, vo_targets)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
@@ -541,7 +542,7 @@ def run(args):
             gradients = tf.gradients(disc_interp, [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-            #disc_cost += LAMBDA * gradient_penalty
+            # disc_cost += LAMBDA * gradient_penalty
             tf.summary.scalar('vo_cost', disc_vo_cost)
 
         elif MODE == 'dcgan':
@@ -589,11 +590,11 @@ def run(args):
 
         elif MODE == 'wgan-gp':
             # con var_list le indicamos los parametros (pesos) que queremos actualizar, en el primer caso los del Generator, en el segundo caso los del Disc
-            #gen_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(gen_cost,
+            # gen_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(gen_cost,
             #                                                                                        var_list=lib.params_with_name(
             #                                                                                            'Generator'),
             #                                                                                        colocate_gradients_with_ops=True)
-            #disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
+            # disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
             #                                                                                         var_list=lib.params_with_name(
             #                                                                                             'Discriminator.'),
             #                                                                                         colocate_gradients_with_ops=True)
@@ -631,10 +632,13 @@ def run(args):
 
         def generate_image(path, iteration):
             samples = session.run(all_fixed_noise_samples)
-            samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
+            samples = rescale_img(samples)
             samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
             lib.save_images.save_pair_images(samples, path,
                                              iteration)
+
+        def rescale_img(samples):
+            return ((samples + 1.) * (255.99 / 2)).astype('int32')
 
         # Dataset iterator
         # train_gen, dev_gen = lib.small_imagenet.load(args.batch_size, data_dir=DATA_DIR)
@@ -644,12 +648,14 @@ def run(args):
         #        for (images,) in train_gen():
         #            yield images
 
-        # Save a batch of ground-truth samples
-        # _x = inf_train_gen().next()
-        # _x_r = session.run(real_data, feed_dict={real_data_conv: _x[:args.batch_size/N_GPUS]})
-        # _x_r = ((_x_r+1.)*(255.99/2)).astype('int32')
-        # lib.save_images.save_images(_x_r.reshape((args.batch_size/N_GPUS, 3, 64, 64)), 'samples_groundtruth.png') TODO por ahora no
-
+        def save_gt_image(batch, path, iteration):
+            # Save a batch of ground-truth samples
+            # imgs = session.run(transposed_all_real_data_conv, feed_dict={all_real_data_conv: batch})
+            # lib.save_images.save_pair_images(imgs, path, 777)
+            _x_r = session.run(real_data, feed_dict={all_real_data_conv: batch})
+            _x_r = rescale_img(_x_r)
+            lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH)),
+                                             path, iteration, prefix='ground_truth')
 
         kfold = 5
         train_images, train_targets, splits = read_data_sets(args.train_data_dir, kfold)
@@ -689,7 +695,7 @@ def run(args):
                 start_time = time.time()
 
                 # Train generator
-                #if iteration > 0:
+                # if iteration > 0:
                 #    _ = session.run(gen_train_op)
 
                 # Train critic and VO
@@ -712,8 +718,8 @@ def run(args):
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
-                #lib.plot.plot('train disc cost', _disc_cost)
-                #lib.plot.plot('train vo cost', _disc_vo_cost)
+                # lib.plot.plot('train disc cost', _disc_cost)
+                # lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
 
                 # if iteration % 200 == 199:
@@ -745,7 +751,9 @@ def run(args):
                     #    dev_disc_costs.append(_dev_disc_cost)
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    #generate_image(curr_fold_log_dir, iteration)
+                    # generate_image(curr_fold_log_dir, iteration)
+                    # save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
+
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
