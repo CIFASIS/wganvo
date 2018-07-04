@@ -503,6 +503,7 @@ def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         Generator, Discriminator = GeneratorAndDiscriminator()
         # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
+        # Las imagenes se cargan como arrays en [0, 1]
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
@@ -511,9 +512,9 @@ def run(args):
         # Mediante tf.transpose se pasa a NCHW
         transposed_all_real_data_conv = tf.transpose(all_real_data_conv, [0, 3, 1, 2])
 
-        # Normalize to [-1, 1]
+        # Rescale from [0, 1] to [-1, 1]
         # Esto es porque la salida del Generator devuelve valores en [-1, 1] (la ultima capa es una tanh)
-        real_norm_data = 2 * ((tf.cast(transposed_all_real_data_conv, tf.float32) / 255.) - .5)
+        real_norm_data = 2 * (tf.cast(transposed_all_real_data_conv, tf.float32) - .5)
         real_data = tf.reshape(real_norm_data,
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
@@ -633,10 +634,13 @@ def run(args):
 
         def generate_image(path, iteration):
             samples = session.run(all_fixed_noise_samples)
-            samples = ((samples + 1.) * (255.99 / 2)).astype('int32')
+            samples = rescale_img(samples)
             samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
             lib.save_images.save_pair_images(samples, path,
                                              iteration)
+
+        def rescale_img(samples):
+            return ((samples + 1.) * (255.99 / 2)).astype('int32')
 
         # Dataset iterator
         # train_gen, dev_gen = lib.small_imagenet.load(args.batch_size, data_dir=DATA_DIR)
@@ -648,13 +652,12 @@ def run(args):
 
         def save_gt_image(batch, path, iteration):
             # Save a batch of ground-truth samples
-            #imgs = session.run(transposed_all_real_data_conv, feed_dict={all_real_data_conv: batch})
-            #lib.save_images.save_pair_images(imgs, path, 777)
+            # imgs = session.run(transposed_all_real_data_conv, feed_dict={all_real_data_conv: batch})
+            # lib.save_images.save_pair_images(imgs, path, 777)
             _x_r = session.run(real_data, feed_dict={all_real_data_conv: batch})
-            _x_r = ((_x_r + 1.) * (255.99/2)).astype('int32')   
-            print(_x_r)         
-            lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH)), path, iteration)
-
+            _x_r = rescale_img(_x_r)
+            lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH)),
+                                             path, iteration, prefix='ground_truth')
 
         kfold = 5
         train_images, train_targets, splits = read_data_sets(args.train_data_dir, kfold)
@@ -740,7 +743,6 @@ def run(args):
                     summary_writer.add_summary(summary_str, iteration)
                     summary_writer.flush()
                 if (iteration < 5) or (iteration % 200 == 199):
-                    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
                 if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
@@ -752,6 +754,7 @@ def run(args):
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
                     generate_image(curr_fold_log_dir, iteration)
+                    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse, train_mse, train_norm_mse = do_evaluation(session,
