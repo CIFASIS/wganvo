@@ -635,9 +635,9 @@ def run(args):
         def generate_image(path, iteration):
             samples = session.run(all_fixed_noise_samples)
             samples = rescale_img(samples)
-            samples = samples.reshape((args.batch_size, 2, IMAGE_HEIGHT, IMAGE_WIDTH))
-            lib.save_images.save_pair_images(samples, path,
-                                             iteration)
+            samples = samples.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH))
+            # lib.save_images.save_pair_images(samples, path, iteration)
+            lib.save_images.save_pair_images_grid(samples, path, iteration)
 
         def rescale_img(samples):
             return ((samples + 1.) * (255.99 / 2)).astype('int32')
