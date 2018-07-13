@@ -65,18 +65,22 @@ def loss(outputs, targets):
 def kendall_loss_uncertainty(outputs, targets, sx, sq):
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
-    loss_x = tf.reduce_mean(tf.norm(outputs_x - targets_x, axis=1))
+    loss_x = tf.norm(outputs_x - targets_x, axis=1)
     q_norm = tf.norm(outputs_q, axis=1)
-    loss_q = tf.reduce_mean(tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1))
+    loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
+    print(loss_x.shape)
+    print(loss_q.shape)
     noise_x = tf.exp(-sx)
     noise_q = tf.exp(-sq)
     tf.summary.scalar("sx", sx)
     tf.summary.scalar("sq", sq)
     tf.summary.scalar("noise_x", noise_x)
     tf.summary.scalar("noise_q", noise_q)
-    return loss_x * noise_x + sx + loss_q * noise_q + sq
+    return tf.reduce_mean(loss_x * noise_x + sx + loss_q * noise_q + sq)
 
 def kendall_loss_naive(outputs, targets):
+    assert False
+    # FIXME
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
     x = tf.reduce_mean(tf.norm(outputs_x - targets_x, axis=1))
