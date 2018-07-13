@@ -250,7 +250,9 @@ def run_training():
 
         standardize_targets = False
         # Add to the Graph the Ops for loss calculation.
-        loss = model.loss(outputs, labels_placeholder)
+        sx = tf.Variable(0., name="regression_sx")
+        sq = tf.Variable(-3., name="regression_sq")
+        loss = model.kendall_loss_uncertainty(outputs, labels_placeholder, sx, sq)#model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = model.training(loss, FLAGS.learning_rate)

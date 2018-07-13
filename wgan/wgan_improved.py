@@ -24,7 +24,7 @@ import tflib.plot
 
 from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
-from vgg_trainable.model import loss
+from vgg_trainable.model import kendall_loss_uncertainty
 from array_utils import load
 
 # Download 64x64 ImageNet at http://image-net.org/small/download.php and
@@ -530,7 +530,9 @@ def run(args):
         elif MODE == 'wgan-gp':
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-            disc_vo_cost = loss(disc_real_vo, vo_targets)
+            sx = lib.param("Discriminator.sx", 0.)
+            sq = lib.param("Discriminator.sq", -3.)
+            disc_vo_cost = kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
