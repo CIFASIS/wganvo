@@ -488,6 +488,11 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
     output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
+    quaternions = output_vo[:, 3:LABELS_SIZE]
+    quaternions_norm = tf.norm(quaternions, axis=1)
+    unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1,1))
+    output_vo = tf.concat([output_vo[:, :3], unit_quaternions], 1)
+
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
