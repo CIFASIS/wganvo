@@ -37,8 +37,8 @@ import sys, os, inspect
 import tensorflow as tf
 import numpy as np
 import numpy.matlib as matlib
-from transform import se3_to_components
-import transformations
+#from transform import se3_to_components
+#import transformations
 # Basic model parameters as external flags.
 FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
@@ -119,6 +119,7 @@ def do_evaluation(sess,
         data_set: The set of images and labels to evaluate, from
         input_data.read_data_sets().
     """
+    import transformations
     rows_reshape = 3
     columns_reshape = 4
     components_vector_size = 6
@@ -281,7 +282,7 @@ def run_training():
         total_start_time = time.time()
         for train_indexs, validation_indexs in splits:
             # Create a saver for writing training checkpoints.
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(max_to_keep=2)
 
             current_fold += 1
             best_validation_performance = 1000000.
