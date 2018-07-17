@@ -80,19 +80,23 @@ def kendall_loss_uncertainty(outputs, targets, sx, sq):
     tf.summary.scalar("noise_q", noise_q)
     return tf.reduce_mean(loss_x * noise_x + sx + loss_q * noise_q + sq)
 
+def acos(x):
+    return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966
+
 def kendall_loss_naive(outputs, targets):
-    assert False
-    # FIXME
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
-    x = tf.reduce_mean(tf.norm(outputs_x - targets_x, axis=1))
-    absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
-    q_norm = tf.norm(outputs_q, axis=1)
-    q = 100 * tf.reduce_mean(tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1))
-    tf.summary.scalar("x_cost", x)
-    tf.summary.scalar("abs_x_cost", absolute_x)
-    tf.summary.scalar("q_scaled_cost", q)
-    return x + q  # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+    loss_x = tf.norm(outputs_x - targets_x, axis=1)
+    #absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
+    #q_norm = tf.norm(outputs_q, axis=1)
+    #loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
+    dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
+    loss_q = 2 * tf.acos(tf.abs(dot))
+    beta = 1
+    #tf.summary.scalar("x_cost", loss_x)
+    #tf.summary.scalar("abs_x_cost", absolute_x)
+    #tf.summary.scalar("q_scaled_cost", beta * loss_q)
+    return tf.reduce_mean(loss_x + beta * loss_q ) # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 
 def split_x_q(batch):
