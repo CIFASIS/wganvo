@@ -132,6 +132,7 @@ def do_evaluation(sess,
     # accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     squared_errors = np.zeros(components_vector_size, dtype="float32")
     inv_k_matrix = np.linalg.inv(k_matrix)
+    accum_geod_distance = 0.
     for step in xrange(steps_per_epoch):
         feed_dict = fill_feed_dict(data_set,
                                    images_placeholder,
@@ -169,13 +170,17 @@ def do_evaluation(sess,
             #curr_target_components = se3_to_components(curr_target_s3_matrix)
 
             current_prediction = prediction[i]
-            euler = transformations.euler_from_quaternion(current_prediction[3:7])
+            prediction_quaternion = current_prediction[3:7]
+            euler = transformations.euler_from_quaternion(prediction_quaternion)
             curr_pred_components = np.hstack((current_prediction[0:3],euler))
             current_target = target[i]
-            euler = transformations.euler_from_quaternion(current_target[3:7])
+            target_quaternion = current_target[3:7]
+            euler = transformations.euler_from_quaternion(target_quaternion)
             curr_target_components = np.hstack((current_target[0:3], euler))
 
-
+            dot = np.dot(target_quaternion, prediction_quaternion)
+            geod_distance = 2 * np.arccos(np.abs(dot))
+            accum_geod_distance += geod_distance
             curr_squared_error = np.square(curr_pred_components - curr_target_components)
             squared_errors += curr_squared_error
             # prediction_matrix[index] = curr_pred_components
@@ -189,10 +194,11 @@ def do_evaluation(sess,
     print("Target")
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
-    rmse = np.sqrt(np.sum(squared_errors) / num_examples)
+    rmse_x = np.sqrt(np.sum(squared_errors[0:3]) / num_examples)
+    mean_geod_dist_q = accum_geod_distance / num_examples
     target_variance = np.var(target_matrix, axis=0)  # variance = std ** 2
     norm_mse = mean_squared_errors / target_variance
-    return rmse, mean_squared_errors, norm_mse
+    return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
 
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
@@ -330,7 +336,7 @@ def run_training():
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
                     print('Training Data Eval:')
-                    train_rmse, train_mse, train_norm_mse = do_evaluation(sess,
+                    train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
                                                                           outputs,
                                                                           images_placeholder,
                                                                           labels_placeholder,
@@ -338,12 +344,13 @@ def run_training():
                                                                           FLAGS.batch_size,
                                                                           intrinsic_matrix,
                                                                           standardize_targets)
-                    add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, step)
+                    add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
+                    add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
                     add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
-                    validation_rmse, validation_mse, validation_norm_mse = do_evaluation(sess,
+                    validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
                                                                                          outputs,
                                                                                          images_placeholder,
                                                                                          labels_placeholder,
@@ -356,12 +363,13 @@ def run_training():
                                                                                          FLAGS.batch_size,
                                                                                          intrinsic_matrix,
                                                                                          standardize_targets)
-                    add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, step)
+                    add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
+                    add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
                     add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
                     # Evaluate against the test set.
                     print('Test Data Eval:')
-                    test_rmse, test_mse, test_norm_mse = do_evaluation(sess,
+                    test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
                                                                        outputs,
                                                                        images_placeholder,
                                                                        labels_placeholder,
@@ -369,12 +377,13 @@ def run_training():
                                                                        FLAGS.batch_size,
                                                                        test_intrinsic_matrix,
                                                                        standardize_targets)
-                    add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, step)
+                    add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
+                    add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
                     # Keep the best model
-                    if validation_rmse < best_validation_performance:
-                        best_validation_performance = validation_rmse
+                    if (validation_rmse_x + validation_dist_q) / 2 < best_validation_performance:
+                        best_validation_performance = validation_rmse_x
                         last_improvement = step
                         checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
                         saver.save(sess, checkpoint_file, global_step=step)
