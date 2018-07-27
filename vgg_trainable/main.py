@@ -37,6 +37,7 @@ import sys, os, inspect
 import tensorflow as tf
 import numpy as np
 import numpy.matlib as matlib
+import math
 #from transform import se3_to_components
 #import transformations
 # Basic model parameters as external flags.
@@ -179,7 +180,7 @@ def do_evaluation(sess,
             curr_target_components = np.hstack((current_target[0:3], euler))
 
             dot = np.dot(target_quaternion, prediction_quaternion)
-            geod_distance = 2 * np.arccos(np.abs(dot))
+            geod_distance = 2 * acos(np.abs(dot))
             accum_geod_distance += geod_distance
             curr_squared_error = np.square(curr_pred_components - curr_target_components)
             squared_errors += curr_squared_error
@@ -200,6 +201,11 @@ def do_evaluation(sess,
     norm_mse = mean_squared_errors / target_variance
     return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
 
+def acos(x):
+    res = np.arccos(x)
+    if math.isnan(res):
+        return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966 
+    return res
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
     ind = 1
@@ -257,9 +263,9 @@ def run_training():
 
         standardize_targets = False
         # Add to the Graph the Ops for loss calculation.
-        sx = tf.Variable(0., name="regression_sx")
-        sq = tf.Variable(-3., name="regression_sq")
-        loss = model.kendall_loss_uncertainty(outputs, labels_placeholder, sx, sq)#model.loss(outputs, labels_placeholder)
+        #sx = tf.Variable(0., name="regression_sx")
+        #sq = tf.Variable(-3., name="regression_sq")
+        loss = model.kendall_loss_naive(outputs, labels_placeholder)#model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = model.training(loss, FLAGS.learning_rate)
@@ -382,8 +388,10 @@ def run_training():
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
                     # Keep the best model
-                    if (validation_rmse_x + validation_dist_q) / 2 < best_validation_performance:
-                        best_validation_performance = validation_rmse_x
+                    v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
+                    add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
+                    if v_eval < best_validation_performance:
+                        best_validation_performance = v_eval
                         last_improvement = step
                         checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
                         saver.save(sess, checkpoint_file, global_step=step)

@@ -90,9 +90,10 @@ def kendall_loss_naive(outputs, targets):
     #absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
     #q_norm = tf.norm(outputs_q, axis=1)
     #loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
-    dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
-    loss_q = 2 * tf.acos(tf.abs(dot))
-    beta = 1
+    #dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
+    #loss_q = 2 * acos(tf.abs(dot))
+    loss_q = tf.norm(targets_q - outputs_q, axis=1)
+    beta = 100
     #tf.summary.scalar("x_cost", loss_x)
     #tf.summary.scalar("abs_x_cost", absolute_x)
     #tf.summary.scalar("q_scaled_cost", beta * loss_q)
