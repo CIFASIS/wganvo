@@ -166,7 +166,7 @@ def read_data_sets(data_dir, kfold=None):
     #test = DataSet(test_images, test_labels, fake_data=fake_data)
     #return Datasets(train=train, cross_validation_splits=cross_validation_splits, test=test)
 
-def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None):
+def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None, rot_tolerance=0.):
     total_num_examples = 0
     labels = []
     frames_idx_map = {}
@@ -185,18 +185,20 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             idxs.append((src_idx, dst_idx))
             rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
             rt = numpy.asmatrix(rt)
-            q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
-            label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
-            labels.append(label)
+            ax, ay, az = transformations.euler_from_matrix(rt[0:3,0:3])
+            if numpy.abs(numpy.rad2deg(ay)) >= rot_tolerance:
+                q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
+                label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
+                labels.append(label)
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)
         frames_idx_map[dir] = idxs
-    assert len(labels) == total_num_examples
+    assert rot_tolerance or len(labels) == total_num_examples
 
     # Process images
-    images = numpy.empty((total_num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
+    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
     if kfold is not None:
-        groups = numpy.empty(total_num_examples)
+        groups = numpy.empty(len(labels))
         group_idx = 0
     iter = 0
     for dir in list_of_subdir:
@@ -215,7 +217,7 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
                 if kfold is not None:
                         groups[iter] = group_number
                 iter += 1
-    assert total_num_examples == iter
+    assert len(labels) == iter
     im = images
     lb = numpy.array(labels, dtype=labels_dtype)
     splits = None
