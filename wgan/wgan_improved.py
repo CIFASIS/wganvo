@@ -689,7 +689,7 @@ def run(args):
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs])
-            saver = tf.train.Saver(max_to_keep=2)
+            saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_dir = os.path.join(args.log_dir, fwriter_str)

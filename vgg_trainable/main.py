@@ -294,7 +294,7 @@ def run_training():
         total_start_time = time.time()
         for train_indexs, validation_indexs in splits:
             # Create a saver for writing training checkpoints.
-            saver = tf.train.Saver(max_to_keep=2)
+            saver = tf.train.Saver(max_to_keep=1)
 
             current_fold += 1
             best_validation_performance = 1000000.
