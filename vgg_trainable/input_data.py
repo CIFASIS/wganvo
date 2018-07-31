@@ -146,7 +146,7 @@ class DataSet(object):
 def get_list_of_subdirectories(data_dir):
     return [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item))]
 
-def read_data_sets(data_dir, kfold=None):
+def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
     list_dir = get_list_of_subdirectories(data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
     #test_list_dir = get_list_of_subdirectories(test_data_dir)
     #if validation_data_dir is not None:
@@ -156,7 +156,7 @@ def read_data_sets(data_dir, kfold=None):
     # FIXME obtener desde train data
     #    validation_images, validation_labels = _inputs(
     #        "/home/cremona/workspace/train/2014-05-06-12-54-54_stereo_centre_01")
-    return _get_images_and_labels(list_dir, kfold=kfold)
+    return _get_images_and_labels(list_dir, kfold=kfold, rot_tolerance=rot_tolerance)
     #test_images, test_labels, _ = _get_images_and_labels(test_list_dir)
 
 
@@ -182,7 +182,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             single_raw_label = raw_labels[i]
             src_idx = single_raw_label['src_idx']
             dst_idx = single_raw_label['dst_idx']
-            idxs.append((src_idx, dst_idx))
             rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
             rt = numpy.asmatrix(rt)
             ax, ay, az = transformations.euler_from_matrix(rt[0:3,0:3])
@@ -190,6 +189,8 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
                 q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
                 label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
                 labels.append(label)
+                idxs.append((src_idx, dst_idx))
+
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)
         frames_idx_map[dir] = idxs
