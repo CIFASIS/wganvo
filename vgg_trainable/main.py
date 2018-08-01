@@ -27,9 +27,9 @@ from scipy import linalg
 # from ... import transform
 import sys, os, inspect
 
-#currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-#parentdir = os.path.dirname(currentdir)
-#sys.path.insert(0, parentdir)
+# currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+# parentdir = os.path.dirname(currentdir)
+# sys.path.insert(0, parentdir)
 # import sys
 # from os import path
 # sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
@@ -38,8 +38,9 @@ import tensorflow as tf
 import numpy as np
 import numpy.matlib as matlib
 import math
-#from transform import se3_to_components
-#import transformations
+
+# from transform import se3_to_components
+# import transformations
 # Basic model parameters as external flags.
 FLAGS = None
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
@@ -153,27 +154,27 @@ def do_evaluation(sess,
         for i in xrange(batch_size):
             assert init + i < end
             index = init + i
-            #current_prediction = prediction[i].reshape(rows_reshape, columns_reshape)
+            # current_prediction = prediction[i].reshape(rows_reshape, columns_reshape)
             # P = K * [R|t] => [R|t] = K^(-1) * P
-            #curr_pred_transform_matrix = inv_k_matrix * current_prediction
-            #current_target = target[i].reshape(rows_reshape, columns_reshape)
-            #curr_target_transform_matrix = inv_k_matrix * current_target
+            # curr_pred_transform_matrix = inv_k_matrix * current_prediction
+            # current_target = target[i].reshape(rows_reshape, columns_reshape)
+            # curr_target_transform_matrix = inv_k_matrix * current_target
             # Get the closest rotation matrix
-            #u, _ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
+            # u, _ = linalg.polar(curr_pred_transform_matrix[0:3, 0:3])
             # Replace the non-orthogonal R matrix obtained from the prediction with the closest rotation matrix
-            #closest_curr_pred_s3_matrix = matlib.identity(4)
-            #closest_curr_pred_s3_matrix[0:3, 0:3] = u
-            #closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3, 3]
-            #curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0, 0, 0, 1]]], axis=0)
+            # closest_curr_pred_s3_matrix = matlib.identity(4)
+            # closest_curr_pred_s3_matrix[0:3, 0:3] = u
+            # closest_curr_pred_s3_matrix[0:3, 3] = curr_pred_transform_matrix[0:3, 3]
+            # curr_target_s3_matrix = np.concatenate([curr_target_transform_matrix, [[0, 0, 0, 1]]], axis=0)
             # From [R|t] matrix to components
             # components = [x,y,z, roll, pitch, yaw]
-            #curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
-            #curr_target_components = se3_to_components(curr_target_s3_matrix)
+            # curr_pred_components = se3_to_components(closest_curr_pred_s3_matrix)
+            # curr_target_components = se3_to_components(curr_target_s3_matrix)
 
             current_prediction = prediction[i]
             prediction_quaternion = current_prediction[3:7]
             euler = transformations.euler_from_quaternion(prediction_quaternion)
-            curr_pred_components = np.hstack((current_prediction[0:3],euler))
+            curr_pred_components = np.hstack((current_prediction[0:3], euler))
             current_target = target[i]
             target_quaternion = current_target[3:7]
             euler = transformations.euler_from_quaternion(target_quaternion)
@@ -190,8 +191,8 @@ def do_evaluation(sess,
     print("---------------------------------------------------------")
     print("Prediction")
     print(current_prediction)
-    #print("Prediction (closest [R|t])")
-    #print(closest_curr_pred_s3_matrix)
+    # print("Prediction (closest [R|t])")
+    # print(closest_curr_pred_s3_matrix)
     print("Target")
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
@@ -201,11 +202,78 @@ def do_evaluation(sess,
     norm_mse = mean_squared_errors / target_variance
     return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
 
+
+def test_ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
+                        targets_placeholder):
+    relative_poses_prediction, relative_poses_target = eval_utils.get_relative_poses(sess, dataset, batch_size,
+                                                                                     images_placeholder, outputs,
+                                                                                     targets_placeholder)
+    groups = dataset.groups
+    datasets_idxs = {}
+    for i, _ in enumerate(relative_poses_prediction):
+        group = str(groups[i])
+        if group in datasets_idxs:
+            datasets_idxs[group].append(i)
+        else:
+            datasets_idxs[group] = [i]
+    acc_rmse_tr = 0.
+    acc_rmse_rot = 0.
+    for grp, idxs in datasets_idxs.iteritems():
+        rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
+        print('*' * 50)
+        print(grp, len(idxs))
+        print(rmse_tr,rmse_rot)
+        acc_rmse_tr += rmse_tr
+        acc_rmse_rot += rmse_rot
+    return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot/ len(datasets_idxs)
+
+
+def calc_trajectory_rmse(relative_poses_prediction, relative_poses_target):
+    absolute_poses_prediction = eval_utils.get_absolute_poses(relative_poses_prediction).reshape(-1, 12)
+    absolute_poses_target = eval_utils.get_absolute_poses(relative_poses_target).reshape(-1, 12)
+    poses_prediction = se3_pose_list(absolute_poses_prediction)
+    poses_target = se3_pose_list(absolute_poses_target)
+    poses_prediction = trajectory.PosePath3D(poses_se3=poses_prediction)
+    poses_target = trajectory.PosePath3D(poses_se3=poses_target)
+    E_tr = poses_prediction.positions_xyz - poses_target.positions_xyz
+    translation_error = [np.linalg.norm(E_i) for E_i in E_tr]
+    E_rot = [ape_base(x_t, x_t_star) for x_t, x_t_star in
+             zip(poses_prediction.poses_se3, poses_target.poses_se3)]
+    rotation_error = np.array(
+        [np.linalg.norm(
+            lie_algebra.so3_from_se3(E_i) - np.eye(3)) for E_i in E_rot])
+    return rmse(translation_error), rmse(rotation_error)
+
+
+def rmse(error):
+    squared_errors = np.power(error, 2)
+    return math.sqrt(np.mean(squared_errors))
+
+
+def se3_pose_list(kitti_format):
+    return [np.array([[r[0], r[1], r[2], r[3]],
+                      [r[4], r[5], r[6], r[7]],
+                      [r[8], r[9], r[10], r[11]],
+                      [0, 0, 0, 1]]) for r in kitti_format]
+
+
+def ape_base(x_t, x_t_star):
+    """
+    Computes the absolute error pose for a single SE(3) pose pair
+    following the notation of the Kummerle paper.
+    :param x_t: estimated absolute pose at t
+    :param x_t_star: reference absolute pose at t
+    .:return: the delta pose
+    """
+    return lie_algebra.relative_se3(x_t, x_t_star)
+
+
 def acos(x):
     res = np.arccos(x)
     if math.isnan(res):
-        return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966 
+        return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966
     return res
+
 
 def add_array_to_tensorboard(arr, prefix_tagname, summary_writer, step):
     ind = 1
@@ -231,8 +299,8 @@ def run_training():
     # Get the sets of images and labels for training, validation, and
     # test on MNIST.
     kfold = 5
-    train_images, train_targets, splits = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
-    test_images, test_targets, _ = input_data.read_data_sets(FLAGS.test_data_dir)
+    train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+    test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
 
     intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
     if FLAGS.test_intrinsics_dir:
@@ -263,9 +331,9 @@ def run_training():
 
         standardize_targets = False
         # Add to the Graph the Ops for loss calculation.
-        #sx = tf.Variable(0., name="regression_sx")
-        #sq = tf.Variable(-3., name="regression_sq")
-        loss = model.kendall_loss_naive(outputs, labels_placeholder)#model.loss(outputs, labels_placeholder)
+        # sx = tf.Variable(0., name="regression_sx")
+        # sq = tf.Variable(-3., name="regression_sq")
+        loss = model.kendall_loss_naive(outputs, labels_placeholder)  # model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = model.training(loss, FLAGS.learning_rate)
@@ -285,7 +353,7 @@ def run_training():
         # Instantiate a SummaryWriter to output summaries and the Graph.
         # summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
-        test_dataset = input_data.DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
+        test_dataset = input_data.DataSet(test_images, test_targets, test_groups, fake_data=FLAGS.fake_data)
         # And then after everything is built:
 
         current_fold = 0
@@ -301,7 +369,7 @@ def run_training():
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs],
+            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], train_groups[train_indexs],
                                                fake_data=FLAGS.fake_data)
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
@@ -341,15 +409,16 @@ def run_training():
                 # Save a checkpoint and evaluate the model periodically.
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
+
                     print('Training Data Eval:')
                     train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
-                                                                          outputs,
-                                                                          images_placeholder,
-                                                                          labels_placeholder,
-                                                                          train_dataset,
-                                                                          FLAGS.batch_size,
-                                                                          intrinsic_matrix,
-                                                                          standardize_targets)
+                                                                                          outputs,
+                                                                                          images_placeholder,
+                                                                                          labels_placeholder,
+                                                                                          train_dataset,
+                                                                                          FLAGS.batch_size,
+                                                                                          intrinsic_matrix,
+                                                                                          standardize_targets)
                     add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
                     add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
@@ -357,18 +426,19 @@ def run_training():
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
                     validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
-                                                                                         outputs,
-                                                                                         images_placeholder,
-                                                                                         labels_placeholder,
-                                                                                         input_data.DataSet(
-                                                                                             train_images[
-                                                                                                 validation_indexs],
-                                                                                             train_targets[
-                                                                                                 validation_indexs],
-                                                                                             fake_data=FLAGS.fake_data),
-                                                                                         FLAGS.batch_size,
-                                                                                         intrinsic_matrix,
-                                                                                         standardize_targets)
+                                                                                                              outputs,
+                                                                                                              images_placeholder,
+                                                                                                              labels_placeholder,
+                                                                                                              input_data.DataSet(
+                                                                                                                  train_images[
+                                                                                                                      validation_indexs],
+                                                                                                                  train_targets[
+                                                                                                                      validation_indexs],
+                                                                                                                  train_groups[validation_indexs],
+                                                                                                                  fake_data=FLAGS.fake_data),
+                                                                                                              FLAGS.batch_size,
+                                                                                                              intrinsic_matrix,
+                                                                                                              standardize_targets)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
@@ -376,17 +446,24 @@ def run_training():
                     # Evaluate against the test set.
                     print('Test Data Eval:')
                     test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
-                                                                       outputs,
-                                                                       images_placeholder,
-                                                                       labels_placeholder,
-                                                                       test_dataset,
-                                                                       FLAGS.batch_size,
-                                                                       test_intrinsic_matrix,
-                                                                       standardize_targets)
+                                                                                      outputs,
+                                                                                      images_placeholder,
+                                                                                      labels_placeholder,
+                                                                                      test_dataset,
+                                                                                      FLAGS.batch_size,
+                                                                                      test_intrinsic_matrix,
+                                                                                      standardize_targets)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
+
+                    print("Test APE Eval:")
+                    mean_ape_rmse_tr, mean_ape_rmse_rot = test_ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
+                                                                           labels_placeholder)
+                    add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
+                    add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
+
                     # Keep the best model
                     v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
                     add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
@@ -396,7 +473,8 @@ def run_training():
                         checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
                         saver.save(sess, checkpoint_file, global_step=step)
                     if step - last_improvement > require_improvement:
-                        print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (last_improvement))
+                        print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (
+                            last_improvement))
                         break
         total_duration = time.time() - total_start_time
         print('Total: %.3f sec' % (total_duration))
@@ -417,7 +495,11 @@ if __name__ == '__main__':
 
     import input_data
     import model
+    import eval_utils
+    import trajectory
+    import lie_algebra
     from array_utils import load
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'train_data_dir',
