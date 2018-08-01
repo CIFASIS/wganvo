@@ -392,11 +392,6 @@ def run_training():
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
 
-                    print("ape")
-                    test_ape = ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
-                                              labels_placeholder)
-                    add_scalar_to_tensorboard(test_ape, "test_ape", summary_writer, step)
-
                     print('Training Data Eval:')
                     train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
                                                                                           outputs,
@@ -443,6 +438,12 @@ def run_training():
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
+
+                    print("Test APE Eval:")
+                    test_ape_rmse_t, test_ape_rmse_r = ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
+                                              labels_placeholder)
+                    add_scalar_to_tensorboard(test_ape_rmse_t, "test_ape_rmse_tr", summary_writer, step)
+                    add_scalar_to_tensorboard(test_ape_rmse_r, "test_ape_rmse_rot", summary_writer, step)
 
                     # Keep the best model
                     v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
