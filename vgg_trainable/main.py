@@ -203,27 +203,41 @@ def do_evaluation(sess,
     return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
 
 
-def ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
-                   targets_placeholder):
+def test_ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
+                        targets_placeholder):
     relative_poses_prediction, relative_poses_target = eval_utils.get_relative_poses(sess, dataset, batch_size,
                                                                                      images_placeholder, outputs,
                                                                                      targets_placeholder)
+    groups = dataset.groups
+    datasets_idxs = {}
+    for i, _ in enumerate(relative_poses_prediction):
+        group = str(groups[i])
+        if group in datasets_idxs:
+            datasets_idxs[group].append(i)
+        else:
+            datasets_idxs[group] = [i]
+
+    for grp, idxs in datasets_idxs.iteritems():
+        rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
+        print('*' * 50)
+        print(grp + str(len(idxs)))
+        print(rmse_tr,rmse_rot)
+
+
+def calc_trajectory_rmse(relative_poses_prediction, relative_poses_target):
     absolute_poses_prediction = eval_utils.get_absolute_poses(relative_poses_prediction).reshape(-1, 12)
     absolute_poses_target = eval_utils.get_absolute_poses(relative_poses_target).reshape(-1, 12)
     poses_prediction = se3_pose_list(absolute_poses_prediction)
     poses_target = se3_pose_list(absolute_poses_target)
     poses_prediction = trajectory.PosePath3D(poses_se3=poses_prediction)
     poses_target = trajectory.PosePath3D(poses_se3=poses_target)
-
     E_tr = poses_prediction.positions_xyz - poses_target.positions_xyz
     translation_error = [np.linalg.norm(E_i) for E_i in E_tr]
-
     E_rot = [ape_base(x_t, x_t_star) for x_t, x_t_star in
              zip(poses_prediction.poses_se3, poses_target.poses_se3)]
     rotation_error = np.array(
         [np.linalg.norm(
             lie_algebra.so3_from_se3(E_i) - np.eye(3)) for E_i in E_rot])
-
     return rmse(translation_error), rmse(rotation_error)
 
 
@@ -281,8 +295,8 @@ def run_training():
     # Get the sets of images and labels for training, validation, and
     # test on MNIST.
     kfold = 5
-    train_images, train_targets, splits = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
-    test_images, test_targets, _ = input_data.read_data_sets(FLAGS.test_data_dir)
+    train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+    test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
 
     intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
     if FLAGS.test_intrinsics_dir:
@@ -335,7 +349,7 @@ def run_training():
         # Instantiate a SummaryWriter to output summaries and the Graph.
         # summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
-        test_dataset = input_data.DataSet(test_images, test_targets, fake_data=FLAGS.fake_data)
+        test_dataset = input_data.DataSet(test_images, test_targets, test_groups, fake_data=FLAGS.fake_data)
         # And then after everything is built:
 
         current_fold = 0
@@ -351,7 +365,7 @@ def run_training():
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs],
+            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], train_groups[train_indexs],
                                                fake_data=FLAGS.fake_data)
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
@@ -416,6 +430,7 @@ def run_training():
                                                                                                                       validation_indexs],
                                                                                                                   train_targets[
                                                                                                                       validation_indexs],
+                                                                                                                  train_groups[validation_indexs],
                                                                                                                   fake_data=FLAGS.fake_data),
                                                                                                               FLAGS.batch_size,
                                                                                                               intrinsic_matrix,
@@ -440,10 +455,10 @@ def run_training():
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
 
                     print("Test APE Eval:")
-                    test_ape_rmse_t, test_ape_rmse_r = ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
-                                              labels_placeholder)
-                    add_scalar_to_tensorboard(test_ape_rmse_t, "test_ape_rmse_tr", summary_writer, step)
-                    add_scalar_to_tensorboard(test_ape_rmse_r, "test_ape_rmse_rot", summary_writer, step)
+                    test_ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
+                                                                           labels_placeholder)
+                    #add_scalar_to_tensorboard(test_ape_rmse_t, "test_ape_rmse_tr", summary_writer, step)
+                    #add_scalar_to_tensorboard(test_ape_rmse_r, "test_ape_rmse_rot", summary_writer, step)
 
                     # Keep the best model
                     v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2

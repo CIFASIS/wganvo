@@ -21,6 +21,7 @@ class DataSet(object):
   def __init__(self,
                images,
                labels,
+               groups,
                fake_data=False,
                one_hot=False,
                reshape=False,
@@ -57,6 +58,7 @@ class DataSet(object):
 #        images = numpy.multiply(images, 1.0 / 255.0)
     self._images = images
     self._labels = labels
+    self._groups = groups
     self._epochs_completed = 0
     self._index_in_epoch = 0
     self._targets_mean = numpy.mean(labels, axis=0)
@@ -74,6 +76,10 @@ class DataSet(object):
   @property
   def images(self):
     return self._images
+
+  @property
+  def groups(self):
+      return self._groups
 
   @property
   def images_norm(self):
@@ -115,6 +121,7 @@ class DataSet(object):
       numpy.random.shuffle(perm0)
       self._images = self.images[perm0]
       self._labels = self.labels[perm0]
+      self._groups = self.groups[perm0]
     # Go to the next epoch
     if start + batch_size > self._num_examples:
       # Finished epoch
@@ -129,6 +136,7 @@ class DataSet(object):
         numpy.random.shuffle(perm)
         self._images = self.images[perm]
         self._labels = self.labels[perm]
+        self._groups = self.groups[perm]
       # Start next epoch
       start = 0
       self._index_in_epoch = batch_size - rest_num_examples
@@ -198,6 +206,7 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
 
     # Process images
     images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
+    groups = None
     if kfold is not None:
         groups = numpy.empty(len(labels))
         group_idx = 0
@@ -209,14 +218,14 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         if dir not in frames_idx_map:
                 raise ValueError(dir + " directory")
         if kfold is not None:
-                group_number = (group_idx % kfold)
+                # group_number = (group_idx % kfold)
                 group_idx += 1
         for (src_idx, dst_idx) in frames_idx_map[dir]:
                 images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
                 images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
                 # Images from the same dir must be in the same fold. See GroupKFold from sklearn.
                 if kfold is not None:
-                        groups[iter] = group_number
+                        groups[iter] = group_idx
                 iter += 1
     assert len(labels) == iter
     im = images
@@ -224,8 +233,8 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
     splits = None
     if kfold is not None:
         gkf = GroupKFold(n_splits=kfold)
-        splits = gkf.split(images, labels, groups = groups)
-    return im, lb, splits
+        splits = gkf.split(images, labels, groups = (groups % kfold))
+    return im, lb, splits, groups
 
 # TODO delete
 def _inputs(dir):
