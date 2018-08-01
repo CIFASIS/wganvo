@@ -227,7 +227,6 @@ def test_ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
         acc_rmse_rot += rmse_rot
     return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot/ len(datasets_idxs)
 
-
 def calc_trajectory_rmse(relative_poses_prediction, relative_poses_target):
     absolute_poses_prediction = eval_utils.get_absolute_poses(relative_poses_prediction).reshape(-1, 12)
     absolute_poses_target = eval_utils.get_absolute_poses(relative_poses_target).reshape(-1, 12)
