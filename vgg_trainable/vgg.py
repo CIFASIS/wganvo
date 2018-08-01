@@ -73,15 +73,26 @@ class Vgg19:
         elif self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
-        self.fc8 = self.fc_layer(self.relu7, 4096, 7, "fc8")
-        quaternions = self.fc8[:, 3:7]
+        self.fc8_1 = self.fc_layer(self.relu7, 4096, 512, "fc8_1")
+        self.relu8_1 = self.activation_function_tensor(self.fc8_1, act_function=self.activation_function)
+        self.fc9_1 = self.fc_layer(self.relu8_1, 512, 512, "fc9_1")
+        self.relu9_1 = self.activation_function_tensor(self.fc9_1, act_function=self.activation_function)
+        self.fc10_1 = self.fc_layer(self.relu9_1, 512, 3, "fc10_1")
+
+        self.fc8_2 = self.fc_layer(self.relu7, 4096, 512, "fc8_2")
+        self.relu8_2 = self.activation_function_tensor(self.fc8_2, act_function=self.activation_function)
+        self.fc9_2 = self.fc_layer(self.relu8_2, 512, 512, "fc9_2")
+        self.relu9_2 = self.activation_function_tensor(self.fc9_2, act_function=self.activation_function)
+        self.fc10_2 = self.fc_layer(self.relu9_2, 512, 4, "fc10_2")
+
+        quaternions = self.fc10_2 #[:, 3:7]
         quaternions_norm = tf.norm(quaternions, axis=1)
         unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
-        self.fc8 = tf.concat([self.fc8[:, :3], unit_quaternions], 1)    
+        self.fc10 = tf.concat([self.fc10_1, unit_quaternions], 1)
         #self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         self.data_dict = None
-        return self.fc8
+        return self.fc10
 
     def build_pruned_vgg(self, images, train_mode=None):
         """
