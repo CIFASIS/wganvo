@@ -26,6 +26,8 @@ from scipy import linalg
 
 # from ... import transform
 import sys, os, inspect
+import random
+import matplotlib.pyplot as plt
 
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
@@ -203,8 +205,8 @@ def do_evaluation(sess,
     return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
 
 
-def test_ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
-                        targets_placeholder):
+def plot_frames_vs_abs_distance(sess, dataset, batch_size, images_placeholder, outputs,
+                        targets_placeholder, output_dir, iteration):
     relative_poses_prediction, relative_poses_target = eval_utils.get_relative_poses(sess, dataset, batch_size,
                                                                                      images_placeholder, outputs,
                                                                                      targets_placeholder)
@@ -218,30 +220,47 @@ def test_ape_evaluation(sess, dataset, batch_size, images_placeholder, outputs,
             datasets_idxs[group] = [i]
     acc_rmse_tr = 0.
     acc_rmse_rot = 0.
+    X_axis = []
+    Y_axis = []
     for grp, idxs in datasets_idxs.iteritems():
-        rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
-        print('*' * 50)
-        print(grp, len(idxs))
-        print(rmse_tr,rmse_rot)
-        acc_rmse_tr += rmse_tr
-        acc_rmse_rot += rmse_rot
-    return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot/ len(datasets_idxs)
+        X, Y = frames_vs_abs_distance(relative_poses_prediction[idxs], relative_poses_target[idxs])
+        X_axis = X_axis + X
+        Y_axis = Y_axis + Y
 
-def calc_trajectory_rmse(relative_poses_prediction, relative_poses_target):
+        #rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
+        #print('*' * 50)
+        #print(grp, len(idxs))
+        #print(rmse_tr, rmse_rot)
+        #acc_rmse_tr += rmse_tr
+        #acc_rmse_rot += rmse_rot
+    plt.scatter(X_axis, Y_axis)
+    plt.savefig(os.path.join(output_dir, 'f_vs_d_{}.png'.format(iteration)))
+    #return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot / len(datasets_idxs)
+
+
+def frames_vs_abs_distance(relative_poses_prediction, relative_poses_target):
     absolute_poses_prediction = eval_utils.get_absolute_poses(relative_poses_prediction).reshape(-1, 12)
     absolute_poses_target = eval_utils.get_absolute_poses(relative_poses_target).reshape(-1, 12)
     poses_prediction = se3_pose_list(absolute_poses_prediction)
     poses_target = se3_pose_list(absolute_poses_target)
     poses_prediction = trajectory.PosePath3D(poses_se3=poses_prediction)
     poses_target = trajectory.PosePath3D(poses_se3=poses_target)
+
     E_tr = poses_prediction.positions_xyz - poses_target.positions_xyz
     translation_error = [np.linalg.norm(E_i) for E_i in E_tr]
-    E_rot = [ape_base(x_t, x_t_star) for x_t, x_t_star in
-             zip(poses_prediction.poses_se3, poses_target.poses_se3)]
-    rotation_error = np.array(
-        [np.linalg.norm(
-            lie_algebra.so3_from_se3(E_i) - np.eye(3)) for E_i in E_rot])
-    return rmse(translation_error), rmse(rotation_error)
+
+    max_num_of_points = len(absolute_poses_prediction)
+    samples = min(50, max_num_of_points)
+    X = random.sample(range(max_num_of_points), samples)
+    Y = translation_error[X]
+
+    return X, Y
+    # E_rot = [ape_base(x_t, x_t_star) for x_t, x_t_star in
+    #         zip(poses_prediction.poses_se3, poses_target.poses_se3)]
+    # rotation_error = np.array(
+    #    [np.linalg.norm(
+    #        lie_algebra.so3_from_se3(E_i) - np.eye(3)) for E_i in E_rot])
+    # return rmse(translation_error), rmse(rotation_error)
 
 
 def rmse(error):
@@ -368,7 +387,8 @@ def run_training():
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs], train_groups[train_indexs],
+            train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs],
+                                               train_groups[train_indexs],
                                                fake_data=FLAGS.fake_data)
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
@@ -433,7 +453,8 @@ def run_training():
                                                                                                                       validation_indexs],
                                                                                                                   train_targets[
                                                                                                                       validation_indexs],
-                                                                                                                  train_groups[validation_indexs],
+                                                                                                                  train_groups[
+                                                                                                                      validation_indexs],
                                                                                                                   fake_data=FLAGS.fake_data),
                                                                                                               FLAGS.batch_size,
                                                                                                               intrinsic_matrix,
@@ -458,10 +479,11 @@ def run_training():
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
 
                     print("Test APE Eval:")
-                    mean_ape_rmse_tr, mean_ape_rmse_rot = test_ape_evaluation(sess, test_dataset, FLAGS.batch_size, images_placeholder, outputs,
-                                                                           labels_placeholder)
-                    add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
-                    add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
+                    plot_frames_vs_abs_distance(sess, test_dataset, FLAGS.batch_size,
+                                                                              images_placeholder, outputs,
+                                                                              labels_placeholder, curr_fold_log_path, step)
+                    #add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
+                    #add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
 
                     # Keep the best model
                     v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
