@@ -27,6 +27,8 @@ from scipy import linalg
 # from ... import transform
 import sys, os, inspect
 import random
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -225,16 +227,20 @@ def plot_frames_vs_abs_distance(sess, dataset, batch_size, images_placeholder, o
     for grp, idxs in datasets_idxs.iteritems():
         X, Y = frames_vs_abs_distance(relative_poses_prediction[idxs], relative_poses_target[idxs])
         X_axis = X_axis + X
-        Y_axis = Y_axis + Y
-
+        Y_axis = np.concatenate([Y_axis,Y])
+        print("Num of frames")
+        print(X)
+        print("d")
+        print(Y)
         #rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
         #print('*' * 50)
         #print(grp, len(idxs))
         #print(rmse_tr, rmse_rot)
         #acc_rmse_tr += rmse_tr
         #acc_rmse_rot += rmse_rot
-    plt.scatter(X_axis, Y_axis)
-    plt.savefig(os.path.join(output_dir, 'f_vs_d_{}.png'.format(iteration)))
+    fig, ax = plt.subplots()
+    ax.plot(X_axis, Y_axis, 'r.')
+    fig.savefig(os.path.join(output_dir, 'f_vs_d_{}.png'.format(iteration)))
     #return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot / len(datasets_idxs)
 
 
@@ -247,12 +253,13 @@ def frames_vs_abs_distance(relative_poses_prediction, relative_poses_target):
     poses_target = trajectory.PosePath3D(poses_se3=poses_target)
 
     E_tr = poses_prediction.positions_xyz - poses_target.positions_xyz
-    translation_error = [np.linalg.norm(E_i) for E_i in E_tr]
+    traslation_error = [np.linalg.norm(E_i) for E_i in E_tr]
+    traslation_error = np.array(traslation_error)
 
     max_num_of_points = len(absolute_poses_prediction)
     samples = min(50, max_num_of_points)
     X = random.sample(range(max_num_of_points), samples)
-    Y = translation_error[X]
+    Y = traslation_error[X]
 
     return X, Y
     # E_rot = [ape_base(x_t, x_t_star) for x_t, x_t_star in
@@ -260,7 +267,7 @@ def frames_vs_abs_distance(relative_poses_prediction, relative_poses_target):
     # rotation_error = np.array(
     #    [np.linalg.norm(
     #        lie_algebra.so3_from_se3(E_i) - np.eye(3)) for E_i in E_rot])
-    # return rmse(translation_error), rmse(rotation_error)
+    # return rmse(traslation_error), rmse(rotation_error)
 
 
 def rmse(error):
