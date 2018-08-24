@@ -238,8 +238,8 @@ def plot_frames_vs_abs_distance(sess, dataset, batch_size, images_placeholder, o
             traslation_error = get_traslation_error(relative_prediction[start:start + N], relative_target[start:start + N])
             assert len(traslation_error) == N
             d = traslation_error[-1]
-            X_axis = X_axis.append(N)
-            Y_axis = Y_axis.append(d)
+            X_axis.append(N)
+            Y_axis.append(d)
             print("Num of frames")
             print(N)
             print("d")
