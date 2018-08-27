@@ -145,6 +145,7 @@ def do_evaluation(sess,
                                    images_placeholder,
                                    labels_placeholder,
                                    feed_with_batch=True,
+                                   shuffle=False,
                                    batch_size=batch_size,
                                    standardize_targets=standardize_targets)
         prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
