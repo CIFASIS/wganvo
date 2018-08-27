@@ -370,7 +370,7 @@ def run_training():
                 feed_dict = fill_feed_dict(train_dataset,
                                            images_placeholder,
                                            labels_placeholder,
-                                           True,
+                                           feed_with_batch=True,
                                            batch_size=FLAGS.batch_size,
                                            standardize_targets=standardize_targets)
                 # Run one step of the model.  The return values are the activations
