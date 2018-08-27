@@ -443,10 +443,10 @@ def run_training():
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
 
-                    print("Test APE Eval:")
-                    relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
-                                                images_placeholder, outputs, labels_placeholder)
-                    eval_utils.plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset, curr_fold_log_path, step)
+                    #print("Test APE Eval:")
+                    #relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
+                    #                            images_placeholder, outputs, labels_placeholder)
+                    #eval_utils.plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset, curr_fold_log_path, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
 

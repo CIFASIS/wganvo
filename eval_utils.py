@@ -114,52 +114,50 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_
     }
     return feed_dict
 
-def plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, output_dir, iteration):
+def plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, output_dir, save_txt=False, plot=False, samples=30):
 
-    groups = dataset.groups
-    datasets_idxs = {}
-    for i, _ in enumerate(relative_poses_prediction):
-        group = str(groups[i])
-        if group in datasets_idxs:
-            datasets_idxs[group].append(i)
-        else:
-            datasets_idxs[group] = [i]
-    acc_rmse_tr = 0.
-    acc_rmse_rot = 0.
+    # groups = dataset.groups
+    # datasets_idxs = {}
+    # for i, _ in enumerate(relative_poses_prediction):
+    #     group = str(groups[i])
+    #     if group in datasets_idxs:
+    #         datasets_idxs[group].append(i)
+    #     else:
+    #         datasets_idxs[group] = [i]
+    # acc_rmse_tr = 0.
+    # acc_rmse_rot = 0.
     X_axis = []
     Y_axis = []
-    SAMPLES = 15
-    for grp, idxs in datasets_idxs.iteritems():
-        relative_prediction = relative_poses_prediction[idxs]
-        relative_target = relative_poses_target[idxs]
-        max_num_of_frames = len(relative_prediction)
-        assert max_num_of_frames == len(relative_target)
-        # Get SAMPLES sub-trajectories from sequence
-        for i in xrange(SAMPLES):
-            # Random sub-trajectory
-            N = random.randint(1, max_num_of_frames)
-            start = random.randint(0, max_num_of_frames - N)
-            traslation_error = get_traslation_error(relative_prediction[start:start + N], relative_target[start:start + N])
-            assert len(traslation_error) == N
-            d = traslation_error[-1]
-            X_axis.append(N)
-            Y_axis.append(d)
-            print("Num of frames")
-            print(N)
-            print("d")
-            print(d)
-        if iteration == 999:
-            np.savetxt(os.path.join(output_dir, 'relative_target_{}.txt'.format(grp)), relative_target.reshape(-1, 12))
-            np.savetxt(os.path.join(output_dir, 'relative_prediction_{}.txt'.format(grp)), relative_prediction.reshape(-1, 12))
+    max_num_of_frames = len(relative_poses_prediction)
+    assert max_num_of_frames == len(relative_poses_target)
+    # Get SAMPLES sub-trajectories from sequence
+    for i in xrange(samples):
+        # Random sub-trajectory
+        N = random.randint(1, max_num_of_frames)
+        start = random.randint(0, max_num_of_frames - N)
+        traslation_error = get_traslation_error(relative_poses_prediction[start:start + N], relative_poses_target[start:start + N])
+        assert len(traslation_error) == N
+        d = traslation_error[-1]
+        X_axis.append(N)
+        Y_axis.append(d)
+        print("Num of frames")
+        print(N)
+        print("d")
+        print(d)
+    if save_txt:
+        np.savetxt(os.path.join(output_dir, 'orig_relative_target.txt'), relative_poses_target.reshape(-1, 12))
+        np.savetxt(os.path.join(output_dir, 'orig_relative_prediction.txt'), relative_poses_prediction.reshape(-1, 12))
         #rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
         #print('*' * 50)
         #print(grp, len(idxs))
         #print(rmse_tr, rmse_rot)
         #acc_rmse_tr += rmse_tr
         #acc_rmse_rot += rmse_rot
-    fig, ax = plt.subplots()
-    ax.plot(X_axis, Y_axis, 'r.')
-    fig.savefig(os.path.join(output_dir, 'f_vs_d_{}.png'.format(iteration)))
+    if plot:
+        fig, ax = plt.subplots()
+        ax.plot(X_axis, Y_axis, 'r.')
+        fig.savefig(os.path.join(output_dir, 'f_vs_d.png'))
+    return X_axis, Y_axis
     #return acc_rmse_tr / len(datasets_idxs), acc_rmse_rot / len(datasets_idxs)
 
 
