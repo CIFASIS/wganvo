@@ -395,19 +395,19 @@ def run_training():
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
 
-                    print('Training Data Eval:')
-                    train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
-                                                                                          outputs,
-                                                                                          images_placeholder,
-                                                                                          labels_placeholder,
-                                                                                          train_dataset,
-                                                                                          FLAGS.batch_size,
-                                                                                          intrinsic_matrix,
-                                                                                          standardize_targets)
-                    add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
-                    add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
-                    add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
-                    add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
+                    #print('Training Data Eval:')
+                    #train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
+                    #                                                                      outputs,
+                    #                                                                      images_placeholder,
+                    #                                                                      labels_placeholder,
+                    #                                                                      train_dataset,
+                    #                                                                      FLAGS.batch_size,
+                    #                                                                      intrinsic_matrix,
+                    #                                                                      standardize_targets)
+                    #add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
+                    #add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
+                    #add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
+                    #add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
                     validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
