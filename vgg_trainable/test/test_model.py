@@ -8,8 +8,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from input_data import read_data_sets, DataSet
-from main import fill_feed_dict, do_evaluation
-from eval_utils import get_relative_poses, get_absolute_poses
+from eval_utils import infer_relative_poses, get_absolute_poses, plot_frames_vs_abs_distance
 import transformations
 
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
@@ -28,9 +27,10 @@ def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
     images, targets, _, groups = read_data_sets(data_dir)
     dataset = DataSet(images, targets, groups, fake_data=False)
-    relative_poses_prediction, relative_poses_target = get_relative_poses(sess, dataset, batch_size, images_placeholder,
+    relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size, images_placeholder,
                                                                           outputs,
                                                                           targets_placeholder)
+    #plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, output_dir, 999)
     np.savetxt(os.path.join(output_dir, "relative_poses_prediction.txt"), relative_poses_prediction.reshape(-1, 12),
                delimiter=' ')
     np.savetxt(os.path.join(output_dir, "relative_poses_target.txt"), relative_poses_target.reshape(-1, 12),
