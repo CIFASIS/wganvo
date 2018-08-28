@@ -446,10 +446,16 @@ def run_training():
 
                     test_dataset.reset_epoch()
 
-                    #print("Test APE Eval:")
-                    #relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
-                    #                            images_placeholder, outputs, labels_placeholder)
-                    #eval_utils.plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset, curr_fold_log_path, step)
+                    print("Test Eval:")
+                    relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
+                                               images_placeholder, outputs, labels_placeholder)
+                    save_txt = step == 999 or step == 19999 or step == 39999
+                    frames, abs_distance = eval_utils.plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset, curr_fold_log_path, save_txt=save_txt)
+                    frames= np.array(frames)
+                    abs_distance = np.array(abs_distance)
+                    te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames)))
+                    print(te_eval)
+                    add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
 
