@@ -444,6 +444,8 @@ def run_training():
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
 
+                    test_dataset.reset_epoch()
+
                     #print("Test APE Eval:")
                     #relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
                     #                            images_placeholder, outputs, labels_placeholder)

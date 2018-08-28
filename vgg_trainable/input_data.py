@@ -93,9 +93,12 @@ class DataSet(object):
   def num_examples(self):
     return self._num_examples
 
-  @property
+  @property # Deprecar
   def epochs_completed(self):
     return self._epochs_completed
+
+  def reset_epoch(self):
+    self._index_in_epoch = 0
 
   def next_batch(self, batch_size, fake_data=False, shuffle=True, standardize_targets=False):
     im, lb = self._next_batch(batch_size, fake_data, shuffle)
