@@ -30,7 +30,7 @@ def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
     relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size, images_placeholder,
                                                                           outputs,
                                                                           targets_placeholder)
-    frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, output_dir, plot=True)
+    frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, output_dir, save_txt=True, plot=True)
     points = np.array(zip(frames, abs_distance))
     np.savetxt(os.path.join(output_dir, "frames_vs_abs_distance.txt"), points)
     np.savetxt(os.path.join(output_dir, "relative_poses_prediction.txt"), relative_poses_prediction.reshape(-1, 12),
