@@ -347,9 +347,10 @@ def run_training():
         for train_indexs, validation_indexs in splits:
             # Create a saver for writing training checkpoints.
             saver = tf.train.Saver(max_to_keep=1)
-
+            our_metric_saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
             best_validation_performance = 1000000.
+            our_metric_test_performance = 1000000.
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
@@ -361,6 +362,7 @@ def run_training():
             # Instantiate a SummaryWriter to output summaries and the Graph.
             summary_writer = tf.summary.FileWriter(curr_fold_log_path, sess.graph)
             last_improvement = 0
+            our_metric_last_improvement = 0
             # Run the Op to initialize the variables.
             sess.run(init)
             # Start the training loop.
@@ -462,6 +464,13 @@ def run_training():
                     # Keep the best model
                     v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
                     add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
+
+                    if te_eval < our_metric_test_performance:
+                        our_metric_test_performance = te_eval
+                        our_metric_last_improvement = step
+                        checkpoint_file = os.path.join(curr_fold_log_path, 'our-metric-vgg-model')
+                        our_metric_saver.save(sess, checkpoint_file, global_step=step)
+
                     if v_eval < best_validation_performance:
                         best_validation_performance = v_eval
                         last_improvement = step
