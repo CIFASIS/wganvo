@@ -830,13 +830,13 @@ def run(args):
                     if te_eval < our_metric_test_performance:
                         our_metric_test_performance = te_eval
                         our_metric_last_improvement = iteration
-                        checkpoint_file = os.path.join(curr_fold_log_dir, 'our-metric-vgg-model')
+                        checkpoint_file = os.path.join(curr_fold_log_dir, 'our-metric-wgan-model')
                         our_metric_saver.save(session, checkpoint_file, global_step=iteration)
 
 
                     # Keep the best model
-                    if validation_rmse < best_validation_performance:
-                        best_validation_performance = validation_rmse
+                    if validation_rmse_x < best_validation_performance:
+                        best_validation_performance = validation_rmse_x
                         last_improvement = iteration
                         checkpoint_file = os.path.join(curr_fold_log_dir, 'wgan-model')
                         saver.save(session, checkpoint_file, global_step=iteration)
