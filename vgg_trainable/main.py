@@ -114,7 +114,7 @@ def do_evaluation(sess,
                   labels_placeholder,
                   data_set,
                   batch_size,
-                  k_matrix,
+                  # k_matrix,
                   standardize_targets):
     # target_variance_vector):
     """Runs one evaluation against the full epoch of data.
@@ -138,7 +138,6 @@ def do_evaluation(sess,
     target_matrix = np.empty((num_examples, components_vector_size), dtype="float32")
     # accum_squared_errors = np.zeros((batch_size, input_data.LABELS_SIZE), dtype="float32")
     squared_errors = np.zeros(components_vector_size, dtype="float32")
-    inv_k_matrix = np.linalg.inv(k_matrix)
     accum_geod_distance = 0.
     for step in xrange(steps_per_epoch):
         feed_dict = fill_feed_dict(data_set,
@@ -286,11 +285,11 @@ def run_training():
     train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
     test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
 
-    intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
-    if FLAGS.test_intrinsics_dir:
-        test_intrinsic_matrix = np.matrix(load(FLAGS.test_intrinsics_dir))
-    else:
-        test_intrinsic_matrix = intrinsic_matrix
+    # intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
+    # if FLAGS.test_intrinsics_dir:
+    #     test_intrinsic_matrix = np.matrix(load(FLAGS.test_intrinsics_dir))
+    # else:
+    #     test_intrinsic_matrix = intrinsic_matrix
     # Tell TensorFlow that the model will be built into the default Graph.
     print("Learning rate: " + str(FLAGS.learning_rate))
     print("Steps: " + str(FLAGS.max_steps))
@@ -403,7 +402,6 @@ def run_training():
                     #                                                                      labels_placeholder,
                     #                                                                      train_dataset,
                     #                                                                      FLAGS.batch_size,
-                    #                                                                      intrinsic_matrix,
                     #                                                                      standardize_targets)
                     # add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
                     # add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
@@ -424,7 +422,7 @@ def run_training():
                                                                                                                       validation_indexs],
                                                                                                                   fake_data=FLAGS.fake_data),
                                                                                                               FLAGS.batch_size,
-                                                                                                              intrinsic_matrix,
+                                                                                                              # intrinsic_matrix,
                                                                                                               standardize_targets)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
@@ -438,7 +436,7 @@ def run_training():
                                                                                       labels_placeholder,
                                                                                       test_dataset,
                                                                                       FLAGS.batch_size,
-                                                                                      test_intrinsic_matrix,
+                                                                                      # test_intrinsic_matrix,
                                                                                       standardize_targets)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
@@ -448,9 +446,10 @@ def run_training():
                     test_dataset.reset_epoch()
 
                     print("Test Eval:")
-                    relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
-                                                                                images_placeholder, outputs,
-                                                                                labels_placeholder)
+                    relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset,
+                                                                                           FLAGS.batch_size,
+                                                                                           images_placeholder, outputs,
+                                                                                           labels_placeholder)
                     save_txt = step == 999 or step == 19999 or step == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
                                                                curr_fold_log_path, save_txt)
@@ -547,17 +546,17 @@ if __name__ == '__main__':
                              'tensorflow/jcremona/tesina/logs/'),
         help='Directory to put the log data.'
     )
-    parser.add_argument(
-        '--intrinsics_dir',
-        type=str,
-        default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
-        help='Intrinsic matrix path'
-    )
-    parser.add_argument(
-        '--test_intrinsics_dir',
-        type=str,
-        help='Intrinsic matrix path'
-    )
+    # parser.add_argument(
+    #     '--intrinsics_dir',
+    #     type=str,
+    #     default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
+    #     help='Intrinsic matrix path'
+    # )
+    # parser.add_argument(
+    #     '--test_intrinsics_dir',
+    #     type=str,
+    #     help='Intrinsic matrix path'
+    # )
     parser.add_argument(
         '--fake_data',
         default=False,

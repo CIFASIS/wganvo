@@ -17,7 +17,7 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
     relative_poses_prediction = np.empty((num_examples, 3, 4))
     relative_poses_target = np.empty((num_examples, 3, 4))
     standardize_targets = False
-    #        rmse, mse, norm_mse = do_evaluation(sess,outputs,images_placeholder, targets_placeholder, dataset, batch_size, intrinsic_matrix, True)
+    #        rmse, mse, norm_mse = do_evaluation(sess,outputs,images_placeholder, targets_placeholder, dataset, batch_size, True)
     for step in xrange(steps_per_epoch):
         feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True,
                                    batch_size=batch_size, shuffle=False, standardize_targets=standardize_targets)
@@ -158,15 +158,15 @@ def plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target
                 # print("d")
                 # print(d)
 
-    #if save_txt:
-    #    np.savetxt(os.path.join(output_dir, 'orig_relative_target.txt'), relative_poses_target.reshape(-1, 12))
-    #    np.savetxt(os.path.join(output_dir, 'orig_relative_prediction.txt'), relative_poses_prediction.reshape(-1, 12))
-        # rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
-        # print('*' * 50)
-        # print(grp, len(idxs))
-        # print(rmse_tr, rmse_rot)
-        # acc_rmse_tr += rmse_tr
-        # acc_rmse_rot += rmse_rot
+                # if save_txt:
+                #    np.savetxt(os.path.join(output_dir, 'orig_relative_target.txt'), relative_poses_target.reshape(-1, 12))
+                #    np.savetxt(os.path.join(output_dir, 'orig_relative_prediction.txt'), relative_poses_prediction.reshape(-1, 12))
+                # rmse_tr, rmse_rot = calc_trajectory_rmse(relative_poses_prediction[idxs], relative_poses_target[idxs])
+                # print('*' * 50)
+                # print(grp, len(idxs))
+                # print(rmse_tr, rmse_rot)
+                # acc_rmse_tr += rmse_tr
+                # acc_rmse_rot += rmse_rot
     if plot:
         fig, ax = plt.subplots()
         ax.plot(X_axis, Y_axis, 'r.')
@@ -197,7 +197,7 @@ def se3_pose_list(kitti_format):
 def our_metric_evaluation(relative_prediction, relative_target, test_dataset, curr_fold_log_path,
                           save_txt):
     frames, abs_distance = plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset,
-                                                                  curr_fold_log_path, save_txt=save_txt)
+                                                       curr_fold_log_path, save_txt=save_txt)
     frames = np.array(frames)
     abs_distance = np.array(abs_distance)
     te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames + 1)))

@@ -41,7 +41,7 @@ N_GPUS = 1  # Number of GPUs
 # BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
 # ITERS = 200000  # How many iterations to train for
 LAMBDA = 10  # Gradient penalty lambda hyperparameter
-#IMAGE_CHANNELS = 2
+# IMAGE_CHANNELS = 2
 OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
 
 lib.print_model_settings(locals().copy())
@@ -491,7 +491,7 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
     output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
     quaternions = output_vo[:, 3:LABELS_SIZE]
     quaternions_norm = tf.norm(quaternions, axis=1)
-    unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1,1))
+    unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
     output_vo = tf.concat([output_vo[:, :3], unit_quaternions], 1)
 
     lib.ops.conv2d.unset_weights_stdev()
@@ -536,9 +536,10 @@ def run(args):
         elif MODE == 'wgan-gp':
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-            #sx = lib.param("Discriminator.sx", 0.)
-            #sq = lib.param("Discriminator.sq", -3.)
-            disc_vo_cost = kendall_loss_naive(disc_real_vo, vo_targets) # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            # sx = lib.param("Discriminator.sx", 0.)
+            # sq = lib.param("Discriminator.sq", -3.)
+            disc_vo_cost = kendall_loss_naive(disc_real_vo,
+                                              vo_targets)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -670,11 +671,11 @@ def run(args):
         kfold = 5
         train_images, train_targets, splits, _ = read_data_sets(args.train_data_dir, kfold)
         test_images, test_targets, _, test_groups = read_data_sets(args.test_data_dir)
-        intrinsic_matrix = np.matrix(load(args.intrinsics_file))
-        if args.test_intrinsics_file:
-            test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
-        else:
-            test_intrinsic_matrix = intrinsic_matrix
+        # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
+        # if args.test_intrinsics_file:
+        #     test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
+        # else:
+        #     test_intrinsic_matrix = intrinsic_matrix
 
         test_dataset = DataSet(test_images, test_targets, test_groups)
         summary = tf.summary.merge_all()
@@ -770,13 +771,13 @@ def run(args):
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(session,
-                                                                          disc_real_vo,
-                                                                          all_real_data_conv,
-                                                                          vo_targets,
-                                                                          train_dataset,
-                                                                          args.batch_size,
-                                                                          intrinsic_matrix,
-                                                                          standardize_targets)
+                                                                                          disc_real_vo,
+                                                                                          all_real_data_conv,
+                                                                                          vo_targets,
+                                                                                          train_dataset,
+                                                                                          args.batch_size,
+                                                                                          # intrinsic_matrix,
+                                                                                          standardize_targets)
                     add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
@@ -784,17 +785,17 @@ def run(args):
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
                     validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(session,
-                                                                                         disc_real_vo,
-                                                                                         all_real_data_conv,
-                                                                                         vo_targets,
-                                                                                         DataSet(
-                                                                                             train_images[
-                                                                                                 validation_indexs],
-                                                                                             train_targets[
-                                                                                                 validation_indexs]),
-                                                                                         args.batch_size,
-                                                                                         intrinsic_matrix,
-                                                                                         standardize_targets)
+                                                                                                              disc_real_vo,
+                                                                                                              all_real_data_conv,
+                                                                                                              vo_targets,
+                                                                                                              DataSet(
+                                                                                                                  train_images[
+                                                                                                                      validation_indexs],
+                                                                                                                  train_targets[
+                                                                                                                      validation_indexs]),
+                                                                                                              args.batch_size,
+                                                                                                              # intrinsic_matrix,
+                                                                                                              standardize_targets)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
@@ -802,13 +803,13 @@ def run(args):
                     # Evaluate against the test set.
                     print('Test Data Eval:')
                     test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(session,
-                                                                       disc_real_vo,
-                                                                       all_real_data_conv,
-                                                                       vo_targets,
-                                                                       test_dataset,
-                                                                       args.batch_size,
-                                                                       test_intrinsic_matrix,
-                                                                       standardize_targets)
+                                                                                      disc_real_vo,
+                                                                                      all_real_data_conv,
+                                                                                      vo_targets,
+                                                                                      test_dataset,
+                                                                                      args.batch_size,
+                                                                                      # test_intrinsic_matrix,
+                                                                                      standardize_targets)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
@@ -819,7 +820,8 @@ def run(args):
                     print("Test Eval:")
                     relative_prediction, relative_target = eval_utils.infer_relative_poses(session, test_dataset,
                                                                                            FLAGS.batch_size,
-                                                                                           all_real_data_conv, disc_real_vo,
+                                                                                           all_real_data_conv,
+                                                                                           disc_real_vo,
                                                                                            vo_targets)
                     save_txt = iteration == 999 or iteration == 19999 or iteration == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
@@ -832,7 +834,6 @@ def run(args):
                         our_metric_last_improvement = iteration
                         checkpoint_file = os.path.join(curr_fold_log_dir, 'our-metric-wgan-model')
                         our_metric_saver.save(session, checkpoint_file, global_step=iteration)
-
 
                     # Keep the best model
                     if validation_rmse_x < best_validation_performance:
@@ -892,16 +893,16 @@ if __name__ == '__main__':
         action='store_true',
         help='Directory to put the log data.'
     )
-    parser.add_argument(
-        '--intrinsics_file',
-        type=str,
-        default=os.path.join(os.getcwd(), "intrinsic_matrix.txt"),
-        help='Intrinsic matrix path'
-    )
-    parser.add_argument(
-        '--test_intrinsics_file',
-        type=str,
-        help='Intrinsic matrix path'
-    )
+    # parser.add_argument(
+    #     '--intrinsics_file',
+    #     type=str,
+    #     default=os.path.join(os.getcwd(), "intrinsic_matrix.txt"),
+    #     help='Intrinsic matrix path'
+    # )
+    # parser.add_argument(
+    #     '--test_intrinsics_file',
+    #     type=str,
+    #     help='Intrinsic matrix path'
+    # )
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
