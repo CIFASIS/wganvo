@@ -22,10 +22,11 @@ import tflib.small_imagenet
 import tflib.ops.layernorm
 import tflib.plot
 
-from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE
+from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
-from vgg_trainable.model import kendall_loss_uncertainty
+from vgg_trainable.model import kendall_loss_naive
 from array_utils import load
+import eval_utils
 
 # Download 64x64 ImageNet at http://image-net.org/small/download.php and
 # fill in the path to the extracted files here!
@@ -40,7 +41,7 @@ N_GPUS = 1  # Number of GPUs
 # BATCH_SIZE = 64  # Batch size. Must be a multiple of N_GPUS
 # ITERS = 200000  # How many iterations to train for
 LAMBDA = 10  # Gradient penalty lambda hyperparameter
-IMAGE_CHANNELS = 2
+#IMAGE_CHANNELS = 2
 OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
 
 lib.print_model_settings(locals().copy())
@@ -535,9 +536,9 @@ def run(args):
         elif MODE == 'wgan-gp':
             gen_cost = -tf.reduce_mean(disc_fake)
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
-            sx = lib.param("Discriminator.sx", 0.)
-            sq = lib.param("Discriminator.sq", -3.)
-            disc_vo_cost = kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            #sx = lib.param("Discriminator.sx", 0.)
+            #sq = lib.param("Discriminator.sq", -3.)
+            disc_vo_cost = kendall_loss_naive(disc_real_vo, vo_targets) # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -667,15 +668,15 @@ def run(args):
                                              path, iteration, prefix='ground_truth')
 
         kfold = 5
-        train_images, train_targets, splits = read_data_sets(args.train_data_dir, kfold)
-        test_images, test_targets, _ = read_data_sets(args.test_data_dir)
+        train_images, train_targets, splits, _ = read_data_sets(args.train_data_dir, kfold)
+        test_images, test_targets, _, test_groups = read_data_sets(args.test_data_dir)
         intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         if args.test_intrinsics_file:
             test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
         else:
             test_intrinsic_matrix = intrinsic_matrix
 
-        test_dataset = DataSet(test_images, test_targets)
+        test_dataset = DataSet(test_images, test_targets, test_groups)
         summary = tf.summary.merge_all()
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
@@ -690,12 +691,16 @@ def run(args):
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs])
             saver = tf.train.Saver(max_to_keep=1)
+            our_metric_saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_dir = os.path.join(args.log_dir, fwriter_str)
             # Instantiate a SummaryWriter to output summaries and the Graph.
             summary_writer = tf.summary.FileWriter(curr_fold_log_dir, session.graph)
             best_validation_performance = 1000000.
+            our_metric_test_performance = 1000000.
+            last_improvement = 0
+            our_metric_last_improvement = 0
             session.run(init)
 
             # gen = inf_train_gen()
@@ -805,6 +810,27 @@ def run(args):
                     add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, iteration)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, iteration)
+
+                    test_dataset.reset_epoch()
+
+                    print("Test Eval:")
+                    relative_prediction, relative_target = eval_utils.infer_relative_poses(session, test_dataset,
+                                                                                           FLAGS.batch_size,
+                                                                                           all_real_data_conv, disc_real_vo,
+                                                                                           vo_targets)
+                    save_txt = iteration == 999 or iteration == 19999 or iteration == 39999
+                    te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
+                                                               curr_fold_log_dir, save_txt)
+                    print(te_eval)
+                    add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, iteration)
+
+                    if te_eval < our_metric_test_performance:
+                        our_metric_test_performance = te_eval
+                        our_metric_last_improvement = iteration
+                        checkpoint_file = os.path.join(curr_fold_log_dir, 'our-metric-vgg-model')
+                        our_metric_saver.save(session, checkpoint_file, global_step=iteration)
+
+
                     # Keep the best model
                     if validation_rmse < best_validation_performance:
                         best_validation_performance = validation_rmse

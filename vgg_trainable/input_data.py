@@ -11,6 +11,7 @@ import transformations
 Datasets = collections.namedtuple('Datasets', ['train', 'cross_validation_splits', 'test'])
 IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
+IMAGE_CHANNELS = 2
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
 LABELS_SIZE = 7
 DEFAULT_MAIN_KEY = 'arr_0'
@@ -21,7 +22,7 @@ class DataSet(object):
   def __init__(self,
                images,
                labels,
-               groups,
+               groups=None,
                fake_data=False,
                one_hot=False,
                reshape=False,
@@ -124,7 +125,8 @@ class DataSet(object):
       numpy.random.shuffle(perm0)
       self._images = self.images[perm0]
       self._labels = self.labels[perm0]
-      self._groups = self.groups[perm0]
+      if self.groups is not None:
+        self._groups = self.groups[perm0]
     # Go to the next epoch
     if start + batch_size > self._num_examples:
       # Finished epoch
@@ -139,7 +141,8 @@ class DataSet(object):
         numpy.random.shuffle(perm)
         self._images = self.images[perm]
         self._labels = self.labels[perm]
-        self._groups = self.groups[perm]
+        if self.groups is not None:
+          self._groups = self.groups[perm]
       # Start next epoch
       start = 0
       self._index_in_epoch = batch_size - rest_num_examples

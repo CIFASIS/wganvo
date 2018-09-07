@@ -355,7 +355,6 @@ def run_training():
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs],
-                                               train_groups[train_indexs],
                                                fake_data=FLAGS.fake_data)
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
@@ -397,8 +396,8 @@ def run_training():
                 if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
 
-                    #print('Training Data Eval:')
-                    #train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
+                    # print('Training Data Eval:')
+                    # train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
                     #                                                                      outputs,
                     #                                                                      images_placeholder,
                     #                                                                      labels_placeholder,
@@ -406,10 +405,10 @@ def run_training():
                     #                                                                      FLAGS.batch_size,
                     #                                                                      intrinsic_matrix,
                     #                                                                      standardize_targets)
-                    #add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
-                    #add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
-                    #add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
-                    #add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
+                    # add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
+                    # add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
+                    # add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
+                    # add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
                     validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
@@ -450,12 +449,11 @@ def run_training():
 
                     print("Test Eval:")
                     relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset, FLAGS.batch_size,
-                                               images_placeholder, outputs, labels_placeholder)
+                                                                                images_placeholder, outputs,
+                                                                                labels_placeholder)
                     save_txt = step == 999 or step == 19999 or step == 39999
-                    frames, abs_distance = eval_utils.plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset, curr_fold_log_path, save_txt=save_txt)
-                    frames= np.array(frames)
-                    abs_distance = np.array(abs_distance)
-                    te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames+1))) 
+                    te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
+                                                               curr_fold_log_path, save_txt)
                     print(te_eval)
                     add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)

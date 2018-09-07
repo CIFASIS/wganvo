@@ -192,3 +192,13 @@ def se3_pose_list(kitti_format):
                       [r[4], r[5], r[6], r[7]],
                       [r[8], r[9], r[10], r[11]],
                       [0, 0, 0, 1]]) for r in kitti_format]
+
+
+def our_metric_evaluation(relative_prediction, relative_target, test_dataset, curr_fold_log_path,
+                          save_txt):
+    frames, abs_distance = plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset,
+                                                                  curr_fold_log_path, save_txt=save_txt)
+    frames = np.array(frames)
+    abs_distance = np.array(abs_distance)
+    te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames + 1)))
+    return te_eval
