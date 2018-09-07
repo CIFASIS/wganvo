@@ -769,7 +769,7 @@ def run(args):
                     save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
-                    train_rmse, train_mse, train_norm_mse = do_evaluation(session,
+                    train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(session,
                                                                           disc_real_vo,
                                                                           all_real_data_conv,
                                                                           vo_targets,
@@ -777,12 +777,13 @@ def run(args):
                                                                           args.batch_size,
                                                                           intrinsic_matrix,
                                                                           standardize_targets)
-                    add_scalar_to_tensorboard(train_rmse, "tr_rmse", summary_writer, iteration)
+                    add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_xyz", summary_writer, iteration)
+                    add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
                     add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, iteration)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
-                    validation_rmse, validation_mse, validation_norm_mse = do_evaluation(session,
+                    validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(session,
                                                                                          disc_real_vo,
                                                                                          all_real_data_conv,
                                                                                          vo_targets,
@@ -794,12 +795,13 @@ def run(args):
                                                                                          args.batch_size,
                                                                                          intrinsic_matrix,
                                                                                          standardize_targets)
-                    add_scalar_to_tensorboard(validation_rmse, "v_rmse", summary_writer, iteration)
+                    add_scalar_to_tensorboard(validation_rmse_x, "v_rmse_xyz", summary_writer, iteration)
+                    add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
                     add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, iteration)
                     # Evaluate against the test set.
                     print('Test Data Eval:')
-                    test_rmse, test_mse, test_norm_mse = do_evaluation(session,
+                    test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(session,
                                                                        disc_real_vo,
                                                                        all_real_data_conv,
                                                                        vo_targets,
@@ -807,7 +809,8 @@ def run(args):
                                                                        args.batch_size,
                                                                        test_intrinsic_matrix,
                                                                        standardize_targets)
-                    add_scalar_to_tensorboard(test_rmse, "te_rmse", summary_writer, iteration)
+                    add_scalar_to_tensorboard(test_rmse_x, "te_rmse_xyz", summary_writer, iteration)
+                    add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, iteration)
 
