@@ -9,16 +9,16 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from input_data import read_data_sets, DataSet
 from eval_utils import infer_relative_poses, get_absolute_poses, plot_frames_vs_abs_distance
-import transformations
+# import transformations
 
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
 
-def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
+def test_model(model_name, data_dir, output_dir):
     sess = tf.Session()
     saver = tf.train.import_meta_graph(model_name + ".meta")
     # print(model_name)
-    inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
+    # inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
     saver.restore(sess, model_name)  # tf.train.latest_checkpoint('./'))
     graph = tf.get_default_graph()
     batch_size = 100
@@ -27,10 +27,12 @@ def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
     images, targets, _, groups = read_data_sets(data_dir)
     dataset = DataSet(images, targets, groups, fake_data=False)
-    relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size, images_placeholder,
-                                                                          outputs,
-                                                                          targets_placeholder)
-    frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, output_dir, save_txt=True, plot=True)
+    relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size,
+                                                                            images_placeholder,
+                                                                            outputs,
+                                                                            targets_placeholder)
+    frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset,
+                                                       output_dir, save_txt=True, plot=True)
     points = np.array(zip(frames, abs_distance))
     np.savetxt(os.path.join(output_dir, "frames_vs_abs_distance.txt"), points)
     np.savetxt(os.path.join(output_dir, "relative_poses_prediction.txt"), relative_poses_prediction.reshape(-1, 12),
@@ -44,9 +46,10 @@ def test_model(model_name, intrinsic_matrix, data_dir, output_dir):
     np.savetxt(os.path.join(output_dir, "absolute_poses_target.txt"), absolute_poses_target.reshape(-1, 12),
                delimiter=' ')
 
+
 def main(_):
-    intrinsic_matrix = np.matrix(np.loadtxt(FLAGS.intrinsics_path, delimiter=' '))
-    test_model(FLAGS.model_name, intrinsic_matrix, FLAGS.data_dir, FLAGS.output_dir)
+    # intrinsic_matrix = np.matrix(np.loadtxt(FLAGS.intrinsics_path, delimiter=' '))
+    test_model(FLAGS.model_name, FLAGS.data_dir, FLAGS.output_dir)
 
 
 if __name__ == '__main__':
@@ -61,17 +64,17 @@ if __name__ == '__main__':
         type=str,
         help='Directory to put the data'
     )
-    parser.add_argument(
-        '--intrinsics_path',
-        type=str,
-        default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
-        help='Intrinsic matrix path'
-    )
+    # parser.add_argument(
+    #     '--intrinsics_path',
+    #     type=str,
+    #     default=os.path.join(os.getcwd(), DEFAULT_INTRINSIC_FILE_NAME),
+    #     help='Intrinsic matrix path'
+    # )
     parser.add_argument(
         '--output_dir',
         type=str,
         default=os.getcwd(),
-        help='Intrinsic matrix path'
+        help='Output dir'
     )
 
     FLAGS, unparsed = parser.parse_known_args()
