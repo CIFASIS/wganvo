@@ -17,7 +17,7 @@ def show(images):
         plt.pause(0.01)
 
 def main():
-    images,_,_ = read_data_sets(FLAGS.img_file)
+    images,_,_,_ = read_data_sets(FLAGS.img_file)
     show(images[...,1])
 
 

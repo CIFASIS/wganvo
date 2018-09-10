@@ -80,8 +80,8 @@ def calculate_transformation(pose_a, pose_b):
 
 
 def get_src_dst_index(idx_pose, offset=1, reverse=None):
-    dst_index = idx_pose
-    src_index = idx_pose + offset
+    dst_index = idx_pose + offset
+    src_index = idx_pose
     if reverse:
         return dst_index, src_index
     return src_index, dst_index
@@ -103,11 +103,13 @@ def main():
     calib_file = os.path.join(args.dir, DEFAULT_CALIBRATION_FILENAME)
     images_filenames = sorted([item for item in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, item))])
     images_list = []
+    crop = args.crop
+    scale = args.scale
     for img_name in images_filenames:
         img = non_demosaic_load(os.path.join(image_dir, img_name))
         original_resolution = adapt_images.get_resolution(img)
         assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
-        modified_img, _ = adapt_images.process_image(img, crop=args.crop, scale=args.scale)
+        modified_img, _ = adapt_images.process_image(img, crop=crop, scale=scale)
         if is_mirror:
             modified_img = np.fliplr(modified_img)
         assert isinstance(modified_img,
@@ -127,7 +129,7 @@ def main():
         print(calibration_matrix.reshape(-1))
         new_focal_length, new_principal_point = get_intrinsics_parameters(
             [calibration_matrix[0, 0], calibration_matrix[1, 1]], [calibration_matrix[0, 2], calibration_matrix[1, 2]],
-            original_resolution, crop=args.crop, scale=args.scale)
+            original_resolution, crop=crop, scale=scale)
         new_intrinsic_matrix = build_intrinsic_matrix(new_focal_length, new_principal_point)
         poses = np.loadtxt(poses_file, delimiter=' ')
         assert len(images_filenames) == len(poses)

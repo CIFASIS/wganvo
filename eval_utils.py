@@ -32,14 +32,16 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
     return relative_poses_prediction, relative_poses_target
 
 
-def get_absolute_poses(relative_poses):
+def get_absolute_poses(relative_poses, inv=False):
     current = np.matrix(np.identity(4))
     num_examples = relative_poses.shape[0]
     absolute_poses = np.empty(shape=relative_poses.shape)
     for i in xrange(num_examples):
         T = np.matrix(np.identity(4))
         T[0:3, :] = relative_poses[i]
-        current = current * np.linalg.inv(T)
+        if inv:
+            T = np.linalg.inv(T)
+        current = current * T
         absolute_poses[i] = current[0:3, :]
     return absolute_poses
 
