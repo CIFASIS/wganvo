@@ -91,48 +91,44 @@ def main():
     args = get_arguments()
     is_mirror = args.mirror
     print(args)
-    if args.cam != "cam0":
-        raise Exception("Only cam0 is supported")
+    # if args.cam != "cam0":
+    #     raise Exception("Only cam0 is supported")
     output_dir = os.curdir
     if args.output_dir:
         output_dir = args.output_dir
     if not os.path.isdir(output_dir):
         raise IOError(output_dir + "is not an existing folder")
-    image_folder_name = get_image_folder_name(args.cam)
-    image_dir = os.path.join(args.dir, image_folder_name)
-    calib_file = os.path.join(args.dir, DEFAULT_CALIBRATION_FILENAME)
-    images_filenames = sorted([item for item in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, item))])
-    images_list = []
+
+    # calib_file = os.path.join(args.dir, DEFAULT_CALIBRATION_FILENAME)
     crop = args.crop
     scale = args.scale
-    for img_name in images_filenames:
-        img = non_demosaic_load(os.path.join(image_dir, img_name))
-        original_resolution = adapt_images.get_resolution(img)
-        assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
-        modified_img, _ = adapt_images.process_image(img, crop=crop, scale=scale)
-        if is_mirror:
-            modified_img = np.fliplr(modified_img)
-        assert isinstance(modified_img,
-                          np.ndarray) and modified_img.dtype == np.uint8  # and modified_img.flags.contiguous
-        images_list.append(modified_img)
-    print(original_resolution)
-    compressed_images = list_to_array(images_list)
-    print compressed_images.shape
+    image_folder_name = get_image_folder_name('cam0')
+    left_images = process_img_from_dir(args.dir,
+                                       image_folder_name,
+                                       is_mirror, crop=crop, scale=scale)
 
+    image_folder_name = get_image_folder_name('cam1')
+    right_images = process_img_from_dir(args.dir,
+                                        image_folder_name,
+                                        is_mirror, crop=crop, scale=scale)
+    assert len(left_images) == len(right_images)
+    compressed_images = zip(left_images, right_images)
+    compressed_images = list_to_array(compressed_images)
+    print compressed_images.shape
     t_records = []
     # p_records = []
     offset = args.offset
     reverse = args.reverse
-    with open(args.poses_file) as poses_file, open(calib_file) as calibration_file:
-        calib = np.genfromtxt(calibration_file, delimiter=' ')
-        calibration_matrix = get_calibration_matrix(calib, args.cam)
-        print(calibration_matrix.reshape(-1))
-        new_focal_length, new_principal_point = get_intrinsics_parameters(
-            [calibration_matrix[0, 0], calibration_matrix[1, 1]], [calibration_matrix[0, 2], calibration_matrix[1, 2]],
-            original_resolution, crop=crop, scale=scale)
-        new_intrinsic_matrix = build_intrinsic_matrix(new_focal_length, new_principal_point)
+    with open(args.poses_file) as poses_file:  # , open(calib_file) as calibration_file:
+        # calib = np.genfromtxt(calibration_file, delimiter=' ')
+        # calibration_matrix = get_calibration_matrix(calib, args.cam)
+        # print(calibration_matrix.reshape(-1))
+        # new_focal_length, new_principal_point = get_intrinsics_parameters(
+        #     [calibration_matrix[0, 0], calibration_matrix[1, 1]], [calibration_matrix[0, 2], calibration_matrix[1, 2]],
+        #     original_resolution, crop=crop, scale=scale)
+        # new_intrinsic_matrix = build_intrinsic_matrix(new_focal_length, new_principal_point)
         poses = np.loadtxt(poses_file, delimiter=' ')
-        assert len(images_filenames) == len(poses)
+        assert len(left_images) == len(poses)
         mirror = np.asmatrix(np.diag((-1, 1, 1)))
         # In this case mirror = mirror^(-1)
         mirror_inverse = mirror
@@ -158,8 +154,8 @@ def main():
     # proy = np.array(p_records, dtype=[('P', ('float32', (3, 4))), ('src_idx', 'int32'), ('dst_idx', 'int32')])
     savez_compressed(os.path.join(output_dir, 't'), transf)
     # savez_compressed(os.path.join(output_dir, 'p'), proy)
-    save(os.path.join(output_dir, "intrinsic_matrix"), new_intrinsic_matrix, fmt='%.18e')
-    save(os.path.join(output_dir, "intrinsic_parameters"), [new_focal_length, new_principal_point], fmt='%.18e')
+    # save(os.path.join(output_dir, "intrinsic_matrix"), new_intrinsic_matrix, fmt='%.18e')
+    # save(os.path.join(output_dir, "intrinsic_parameters"), [new_focal_length, new_principal_point], fmt='%.18e')
     save(os.path.join(output_dir, 'images_shape'), compressed_images.shape, fmt='%i')
     compressed_images_path = os.path.join(output_dir, 'images')
     savez_compressed(compressed_images_path, compressed_images)
@@ -167,6 +163,26 @@ def main():
     # print(euler_from_matrix(transf_src_dst))
     # print(translation_from_matrix(transf_src_dst))
     save(os.path.join(output_dir, 'transformations'), ts, fmt='%.18e')
+
+
+def process_img_from_dir(dir, image_folder_name, is_mirror, crop=None, scale=None):
+    print(image_folder_name)
+    image_dir = os.path.join(dir, image_folder_name)
+    print(image_dir)
+    images_filenames = sorted([item for item in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, item))])
+    images_list = []
+    for img_name in images_filenames:
+        img = non_demosaic_load(os.path.join(image_dir, img_name))
+        original_resolution = adapt_images.get_resolution(img)
+        assert isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.flags.contiguous
+        modified_img, _ = adapt_images.process_image(img, crop=crop, scale=scale)
+        if is_mirror:
+            modified_img = np.fliplr(modified_img)
+        assert isinstance(modified_img,
+                          np.ndarray) and modified_img.dtype == np.uint8  # and modified_img.flags.contiguous
+        images_list.append(modified_img)
+    print(original_resolution)
+    return images_list  # , original_resolution
 
 
 if __name__ == "__main__":

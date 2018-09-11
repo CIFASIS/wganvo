@@ -28,11 +28,12 @@ class Vgg19:
     def build(self, images, train_mode=None, pooling_type="max"):
         """
         load variable from npy to build the VGG
-        :param images: [batch, height, width, 1] (usually a placeholder)
+        :param images: [batch, height, width, channels] (usually a placeholder)
         :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
         """
-
-        self.conv1_1 = self.conv_layer(images, 2, 64, "conv1_1")
+        input_channels = int(images.shape[3])
+        print(input_channels)
+        self.conv1_1 = self.conv_layer(images, input_channels, 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
         self.pool1 = self.pooling(self.conv1_2, 'pool1', pooling_type=pooling_type)
 

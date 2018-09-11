@@ -11,7 +11,7 @@ import transformations
 Datasets = collections.namedtuple('Datasets', ['train', 'cross_validation_splits', 'test'])
 IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
-IMAGE_CHANNELS = 2
+IMAGE_CHANNELS = 4
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
 LABELS_SIZE = 7
 DEFAULT_MAIN_KEY = 'arr_0'
@@ -63,7 +63,7 @@ class DataSet(object):
     self._epochs_completed = 0
     self._index_in_epoch = 0
     self._targets_mean = numpy.mean(labels, axis=0)
-    self._targets_std = numpy.std(labels, axis=0) 
+    self._targets_std = numpy.std(labels, axis=0)
 
 
   @property
@@ -211,11 +211,12 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
     assert rot_tolerance or len(labels) == total_num_examples
 
     # Process images
-    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
+    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS), dtype=images_dtype)
     groups = numpy.empty(len(labels))
     group_idx = 0
     iter = 0
     for dir in list_of_subdir:
+        print(dir)
         images_filename = os.path.join(dir, "images.npz")
         dataset = numpy.load(images_filename)[DEFAULT_MAIN_KEY]
         assert dataset.dtype == images_dtype
@@ -224,8 +225,11 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         # group_number = (group_idx % kfold)
         group_idx += 1
         for (src_idx, dst_idx) in frames_idx_map[dir]:
-                images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
-                images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
+                # [L_i, L_(i+1), R_i, R_(i+1)]
+                images[iter,...,0] = dataset[src_idx][0]# * (1.0 / 255.0)
+                images[iter,...,1] = dataset[dst_idx][0]# * (1.0 / 255.0)
+                images[iter,...,2] = dataset[src_idx][1]  # * (1.0 / 255.0)
+                images[iter,...,3] = dataset[dst_idx][1]  # * (1.0 / 255.0)
                 # Images from the same dir must be in the same fold. See GroupKFold from sklearn.
                 groups[iter] = group_idx
                 iter += 1
@@ -237,32 +241,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         gkf = GroupKFold(n_splits=kfold)
         splits = gkf.split(images, labels, groups = (groups % kfold))
     return im, lb, splits, groups
-
-# TODO delete
-def _inputs(dir):
-    main_key = 'arr_0'
-    images_filename = os.path.join(dir,"images.npz")
-    labels_filename = os.path.join(dir,"p.npz")
-    dataset = numpy.load(images_filename)[main_key]
-    raw_labels = numpy.load(labels_filename)[main_key]
-    num_examples = raw_labels.size
-    images = numpy.empty((num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
-    #images = []
-    labels = []
-    for i in range(num_examples):
-        single_raw_label = raw_labels[i]
-        src_idx = single_raw_label['src_idx']
-        dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'].reshape(LABELS_SIZE)
-        labels.append(label)
-        frame_1 = dataset[src_idx]
-        frame_2 = dataset[dst_idx]
-        images[i,...,0] = frame_1
-        images[i,...,1] = frame_2
-        #images.append((frame_1, frame_2))
-    #print images.dtype, images.dtype
-    ### images,
-    return images, numpy.array(labels)
 
 if __name__ == '__main__':
     pass
