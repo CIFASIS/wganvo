@@ -41,23 +41,25 @@ def build_grid(X):
 # Guarda dos grillas
 def save_pair_images_grid(X, save_path, iteration, prefix='samples'):
     grid = build_grid(X)
+    # TODO adaptar a stereo
     assert grid.ndim == 3 and grid.shape[2] == 2
 
     grid = grid.transpose(2, 0, 1)
-    imsave_pair(grid, save_path, iteration, prefix)
+    imsave_pair(grid[0, ...], grid[1, ...], save_path, iteration, prefix)
 
 
 # Guarda imgs individuales
 def save_pair_images(X, save_path, iteration, prefix='samples'):
     # BCHW
-    assert X.ndim == 4 and X.shape[1] == 2
+    assert X.ndim == 4 and X.shape[1] == 4
 
-    idx = 0 #randrange(X.shape[0])
-    pair = X[idx]
-    imsave_pair(pair, save_path, iteration, prefix)
+    idx = 0  # randrange(X.shape[0])
+    samples = X[idx]
+    imsave_pair(samples[0, ...], samples[1, ...], save_path, iteration, prefix + '_l')
+    imsave_pair(samples[2, ...], samples[3, ...], save_path, iteration, prefix + '_r')
 
 
-def imsave_pair(pair, save_path, iteration, prefix):
+def imsave_pair(im1, im2, save_path, iteration, prefix):
     img_name = prefix + '_{}_{}.png'
-    imsave(os.path.join(save_path, img_name.format(iteration, 0)), pair[0, ...])
-    imsave(os.path.join(save_path, img_name.format(iteration, 1)), pair[1, ...])
+    imsave(os.path.join(save_path, img_name.format(iteration, 0)), im1)
+    imsave(os.path.join(save_path, img_name.format(iteration, 1)), im2)
