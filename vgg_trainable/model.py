@@ -32,7 +32,7 @@ import tensorflow as tf
 MATRIX_MATCH_TOLERANCE = 1e-4
 
 
-def inference(images, pruned_vgg=False, pooling_type="max", activation_function="relu"):
+def inference(images, train_mode, pruned_vgg=False, pooling_type="max", activation_function="relu"):
     """Build the model up to where it may be used for inference.
     Args:
       images: Images placeholder, from inputs().
@@ -43,7 +43,7 @@ def inference(images, pruned_vgg=False, pooling_type="max", activation_function=
     v = vgg.Vgg19(int(images.shape[2]), int(images.shape[1]), activation_function=activation_function)
     if pruned_vgg:
         return v.build_pruned_vgg(images)
-    return v.build(images, pooling_type=pooling_type)
+    return v.build(images, train_mode, pooling_type=pooling_type)
 
 
 # FIXME revisar

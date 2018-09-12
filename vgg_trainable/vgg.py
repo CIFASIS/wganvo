@@ -62,8 +62,10 @@ class Vgg19:
         self.fc6 = self.fc_layer(self.pool5, fc_in_size, 4096, "fc6")
         self.relu6 = self.activation_function_tensor(self.fc6, act_function=self.activation_function)#tf.nn.relu(self.fc6)
         if train_mode is not None:
+            print("Train Mode placeholder")
             self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, self.dropout), lambda: self.relu6)
         elif self.trainable:
+            print("Not Train Mode placeholder")
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
         self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")

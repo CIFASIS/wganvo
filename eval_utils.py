@@ -11,7 +11,7 @@ import trajectory
 
 
 def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
-                         targets_placeholder):
+                         targets_placeholder, train_mode=None):
     steps_per_epoch = dataset.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
     relative_poses_prediction = np.empty((num_examples, 3, 4))
@@ -21,6 +21,8 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
     for step in xrange(steps_per_epoch):
         feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True,
                                    batch_size=batch_size, shuffle=False, standardize_targets=standardize_targets)
+        if train_mode is not None:
+            feed_dict[train_mode] = False
         prediction_batch, target_batch = sess.run([outputs, targets_placeholder], feed_dict=feed_dict)
         batch_relative_poses_pred, batch_relative_poses_target = get_trajectories(dataset, batch_size,
                                                                                   prediction_batch, target_batch,
@@ -29,6 +31,8 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
         end = batch_size * (step + 1)
         relative_poses_prediction[init:end] = batch_relative_poses_pred
         relative_poses_target[init:end] = batch_relative_poses_target
+    if train_mode is not None:
+        print("Train Mode: " + str(sess.run(train_mode, feed_dict)))
     return relative_poses_prediction, relative_poses_target
 
 

@@ -303,9 +303,10 @@ def run_training():
 
         # train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
         #    data_sets.train.num_examples)
+        train_mode = tf.placeholder(tf.bool, name="train_mode")
 
         # Build a Graph that computes predictions from the inference model.
-        outputs = model.inference(images_placeholder, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
+        outputs = model.inference(images_placeholder, train_mode, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
 
         # Rename
         outputs = tf.identity(outputs, name="outputs")
@@ -374,6 +375,8 @@ def run_training():
                                            feed_with_batch=True,
                                            batch_size=FLAGS.batch_size,
                                            standardize_targets=standardize_targets)
+                feed_dict[train_mode] = True
+
                 # Run one step of the model.  The return values are the activations
                 # from the `train_op` (which is discarded) and the `loss` Op.  To
                 # inspect the values of your Ops or variables, you may include them
@@ -449,7 +452,7 @@ def run_training():
                     relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset,
                                                                                            FLAGS.batch_size,
                                                                                            images_placeholder, outputs,
-                                                                                           labels_placeholder)
+                                                                                           labels_placeholder, train_mode)
                     save_txt = step == 999 or step == 19999 or step == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
                                                                curr_fold_log_path, save_txt)
