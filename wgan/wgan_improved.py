@@ -461,7 +461,7 @@ def FCDiscriminator(inputs, FC_DIM=512, n_layers=3):
     return tf.reshape(output, [-1])
 
 
-def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
+def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyReLU):
     output = tf.reshape(inputs, [-1, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH])
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
@@ -488,7 +488,17 @@ def DCGANDiscriminator(inputs, dim=DIM, bn=True, nonlinearity=LeakyReLU):
 
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
-    output_vo = lib.ops.linear.Linear('Discriminator.Output.VO', height * width * 8 * dim, LABELS_SIZE, output)
+
+    dropout = 0.5
+    fc1 = lib.ops.linear.Linear('VO.1', height * width * 8 * dim, 4096, output)
+    relu1 = tf.nn.relu(fc1)
+    drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
+
+    fc2 = lib.ops.linear.Linear('VO.2', 4096, 4096, drop1)
+    relu2 = tf.nn.relu(fc2)
+    drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
+    output_vo = lib.ops.linear.Linear('VO.3', 4096, LABELS_SIZE, drop2)
+
     quaternions = output_vo[:, 3:LABELS_SIZE]
     quaternions_norm = tf.norm(quaternions, axis=1)
     unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
@@ -525,8 +535,10 @@ def run(args):
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
 
-        disc_real, disc_real_vo = Discriminator(real_data)
-        disc_fake, _ = Discriminator(fake_data)
+        train_mode = tf.placeholder(tf.bool)
+
+        disc_real, disc_real_vo = Discriminator(real_data, train_mode)
+        disc_fake, _ = Discriminator(fake_data, train_mode)
         disc_real_vo = tf.identity(disc_real_vo, name="outputs")
 
         if MODE == 'wgan':
@@ -611,7 +623,7 @@ def run(args):
                                                                                                      colocate_gradients_with_ops=True)
             disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
                                                                                                         var_list=lib.params_with_name(
-                                                                                                            'Discriminator.'),
+                                                                                                            'VO.'),
                                                                                                         colocate_gradients_with_ops=True)
 
         elif MODE == 'dcgan':
@@ -726,6 +738,7 @@ def run(args):
                                                True,
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
+                    feed_dict[train_mode] = True
                     # _data = gen.next()
                     _disc_cost, _disc_vo_cost, _, _ = session.run(
                         [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
@@ -777,7 +790,8 @@ def run(args):
                                                                                           train_dataset,
                                                                                           args.batch_size,
                                                                                           # intrinsic_matrix,
-                                                                                          standardize_targets)
+                                                                                          standardize_targets,
+                                                                                          train_mode)
                     add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, iteration)
@@ -795,7 +809,8 @@ def run(args):
                                                                                                                       validation_indexs]),
                                                                                                               args.batch_size,
                                                                                                               # intrinsic_matrix,
-                                                                                                              standardize_targets)
+                                                                                                              standardize_targets,
+                                                                                                              train_mode)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, iteration)
@@ -809,7 +824,8 @@ def run(args):
                                                                                       test_dataset,
                                                                                       args.batch_size,
                                                                                       # test_intrinsic_matrix,
-                                                                                      standardize_targets)
+                                                                                      standardize_targets,
+                                                                                      train_mode)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_xyz", summary_writer, iteration)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, iteration)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, iteration)
@@ -822,7 +838,8 @@ def run(args):
                                                                                            FLAGS.batch_size,
                                                                                            all_real_data_conv,
                                                                                            disc_real_vo,
-                                                                                           vo_targets)
+                                                                                           vo_targets,
+                                                                                           train_mode)
                     save_txt = iteration == 999 or iteration == 19999 or iteration == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
                                                                curr_fold_log_dir, save_txt)
