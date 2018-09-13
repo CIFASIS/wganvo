@@ -115,7 +115,8 @@ def do_evaluation(sess,
                   data_set,
                   batch_size,
                   # k_matrix,
-                  standardize_targets):
+                  standardize_targets,
+                  train_mode=None):
     # target_variance_vector):
     """Runs one evaluation against the full epoch of data.
     Args:
@@ -147,6 +148,8 @@ def do_evaluation(sess,
                                    shuffle=False,
                                    batch_size=batch_size,
                                    standardize_targets=standardize_targets)
+        if train_mode is not None:
+            feed_dict[train_mode] = False
         prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
         if standardize_targets:  # if true, convert back to original scale
             prediction = prediction * data_set.targets_std + data_set.targets_mean
@@ -426,7 +429,8 @@ def run_training():
                                                                                                                   fake_data=FLAGS.fake_data),
                                                                                                               FLAGS.batch_size,
                                                                                                               # intrinsic_matrix,
-                                                                                                              standardize_targets)
+                                                                                                              standardize_targets,
+                                                                                                              train_mode)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
@@ -440,7 +444,8 @@ def run_training():
                                                                                       test_dataset,
                                                                                       FLAGS.batch_size,
                                                                                       # test_intrinsic_matrix,
-                                                                                      standardize_targets)
+                                                                                      standardize_targets,
+                                                                                      train_mode)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
@@ -452,7 +457,8 @@ def run_training():
                     relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset,
                                                                                            FLAGS.batch_size,
                                                                                            images_placeholder, outputs,
-                                                                                           labels_placeholder, train_mode)
+                                                                                           labels_placeholder,
+                                                                                           train_mode)
                     save_txt = step == 999 or step == 19999 or step == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
                                                                curr_fold_log_path, save_txt)
