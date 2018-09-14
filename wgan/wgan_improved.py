@@ -535,7 +535,7 @@ def run(args):
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         fake_data = Generator(args.batch_size)
 
-        train_mode = tf.placeholder(tf.bool)
+        train_mode = tf.placeholder(tf.bool, name="train_mode")
 
         disc_real, disc_real_vo = Discriminator(real_data, train_mode)
         disc_fake, _ = Discriminator(fake_data, train_mode)
@@ -559,7 +559,7 @@ def run(args):
             )
             differences = fake_data - real_data
             interpolates = real_data + (alpha * differences)
-            disc_interp, _ = Discriminator(interpolates)
+            disc_interp, _ = Discriminator(interpolates, train_mode)
             gradients = tf.gradients(disc_interp, [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
             gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
