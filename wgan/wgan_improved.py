@@ -490,14 +490,14 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
 
     dropout = 0.5
-    fc1 = lib.ops.linear.Linear('VO.1', height * width * 8 * dim, 4096, output)
+    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 4096, output)
     relu1 = tf.nn.relu(fc1)
     drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
 
-    fc2 = lib.ops.linear.Linear('VO.2', 4096, 4096, drop1)
+    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 4096, 4096, drop1)
     relu2 = tf.nn.relu(fc2)
     drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
-    output_vo = lib.ops.linear.Linear('VO.3', 4096, LABELS_SIZE, drop2)
+    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
 
     quaternions = output_vo[:, 3:LABELS_SIZE]
     quaternions_norm = tf.norm(quaternions, axis=1)
@@ -623,7 +623,7 @@ def run(args):
                                                                                                      colocate_gradients_with_ops=True)
             disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
                                                                                                         var_list=lib.params_with_name(
-                                                                                                            'VO.'),
+                                                                                                            'Discriminator.'),
                                                                                                         colocate_gradients_with_ops=True)
 
         elif MODE == 'dcgan':
