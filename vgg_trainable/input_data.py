@@ -11,7 +11,7 @@ import transformations
 Datasets = collections.namedtuple('Datasets', ['train', 'cross_validation_splits', 'test'])
 IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
-IMAGE_CHANNELS = 2
+IMAGE_CHANNELS = 5
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
 LABELS_SIZE = 7
 DEFAULT_MAIN_KEY = 'arr_0'
@@ -160,7 +160,7 @@ class DataSet(object):
 def get_list_of_subdirectories(data_dir):
     return [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item))]
 
-def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
+def read_data_sets(data_dir, kfold=None):
     list_dir = get_list_of_subdirectories(data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
     #test_list_dir = get_list_of_subdirectories(test_data_dir)
     #if validation_data_dir is not None:
@@ -170,7 +170,7 @@ def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
     # FIXME obtener desde train data
     #    validation_images, validation_labels = _inputs(
     #        "/home/cremona/workspace/train/2014-05-06-12-54-54_stereo_centre_01")
-    return _get_images_and_labels(list_dir, kfold=kfold, rot_tolerance=rot_tolerance)
+    return _get_images_and_labels(list_dir, kfold=kfold)
     #test_images, test_labels, _ = _get_images_and_labels(test_list_dir)
 
 
@@ -180,7 +180,7 @@ def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
     #test = DataSet(test_images, test_labels, fake_data=fake_data)
     #return Datasets(train=train, cross_validation_splits=cross_validation_splits, test=test)
 
-def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None, rot_tolerance=0.):
+def _get_images_and_labels(list_of_subdir, seq_length=IMAGE_CHANNELS, images_dtype="uint8", labels_dtype="float32", kfold=None):
     total_num_examples = 0
     labels = []
     frames_idx_map = {}
@@ -196,10 +196,9 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             single_raw_label = raw_labels[i]
             src_idx = single_raw_label['src_idx']
             dst_idx = single_raw_label['dst_idx']
-            rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
-            rt = numpy.asmatrix(rt)
-            ax, ay, az = transformations.euler_from_matrix(rt[0:3,0:3])
-            if numpy.abs(numpy.rad2deg(ay)) >= rot_tolerance:
+            if dst_idx - seq_length + 1 >= 0:
+                rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
+                rt = numpy.asmatrix(rt)
                 q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
                 label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
                 labels.append(label)
@@ -208,10 +207,10 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)
         frames_idx_map[dir] = idxs
-    assert rot_tolerance or len(labels) == total_num_examples
+    #assert len(labels) == total_num_examples
 
     # Process images
-    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
+    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, seq_length), dtype=images_dtype)
     groups = numpy.empty(len(labels))
     group_idx = 0
     iter = 0
@@ -224,8 +223,10 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         # group_number = (group_idx % kfold)
         group_idx += 1
         for (src_idx, dst_idx) in frames_idx_map[dir]:
-                images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
-                images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
+                #images[iter,..., seq_length-2] = dataset[src_idx]# * (1.0 / 255.0)
+                #images[iter,..., seq_length-1] = dataset[dst_idx]# * (1.0 / 255.0)
+                sequence = numpy.transpose(dataset[dst_idx - seq_length + 1:dst_idx + 1], (1,2,0))
+                images[iter, ..., 0:seq_length] = sequence
                 # Images from the same dir must be in the same fold. See GroupKFold from sklearn.
                 groups[iter] = group_idx
                 iter += 1
@@ -237,32 +238,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         gkf = GroupKFold(n_splits=kfold)
         splits = gkf.split(images, labels, groups = (groups % kfold))
     return im, lb, splits, groups
-
-# TODO delete
-def _inputs(dir):
-    main_key = 'arr_0'
-    images_filename = os.path.join(dir,"images.npz")
-    labels_filename = os.path.join(dir,"p.npz")
-    dataset = numpy.load(images_filename)[main_key]
-    raw_labels = numpy.load(labels_filename)[main_key]
-    num_examples = raw_labels.size
-    images = numpy.empty((num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
-    #images = []
-    labels = []
-    for i in range(num_examples):
-        single_raw_label = raw_labels[i]
-        src_idx = single_raw_label['src_idx']
-        dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'].reshape(LABELS_SIZE)
-        labels.append(label)
-        frame_1 = dataset[src_idx]
-        frame_2 = dataset[dst_idx]
-        images[i,...,0] = frame_1
-        images[i,...,1] = frame_2
-        #images.append((frame_1, frame_2))
-    #print images.dtype, images.dtype
-    ### images,
-    return images, numpy.array(labels)
 
 if __name__ == '__main__':
     pass
