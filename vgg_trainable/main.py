@@ -66,7 +66,7 @@ def placeholder_inputs(batch_size, images_placeholder_name=None, targets_placeho
     # rather than the full size of the train or test data sets.
     images_placeholder = tf.placeholder(tf.float32, name=images_placeholder_name, shape=(batch_size,
                                                                                          input_data.IMAGE_HEIGHT,
-                                                                                         input_data.IMAGE_WIDTH, 2))
+                                                                                         input_data.IMAGE_WIDTH, input_data.IMAGE_CHANNELS))
     labels_placeholder = tf.placeholder(tf.float32, name=targets_placeholder_name,
                                         shape=(batch_size, input_data.LABELS_SIZE))
     return images_placeholder, labels_placeholder
