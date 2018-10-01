@@ -75,11 +75,11 @@ class Vgg19:
         elif self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
-        self.fc8 = self.fc_layer(self.relu7, 4096, 7, "fc8")
-        quaternions = self.fc8[:, 3:7]
-        quaternions_norm = tf.norm(quaternions, axis=1)
-        unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
-        self.fc8 = tf.concat([self.fc8[:, :3], unit_quaternions], 1)    
+        self.fc8 = self.fc_layer(self.relu7, 4096, 6, "fc8")
+        #quaternions = self.fc8[:, 3:7]
+        #quaternions_norm = tf.norm(quaternions, axis=1)
+        #unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
+        #self.fc8 = tf.concat([self.fc8[:, :3], unit_quaternions], 1)    
         #self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         self.data_dict = None
