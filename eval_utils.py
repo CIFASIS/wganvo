@@ -24,9 +24,12 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
         if train_mode is not None:
             feed_dict[train_mode] = False
         prediction_batch, target_batch = sess.run([outputs, targets_placeholder], feed_dict=feed_dict)
-        batch_relative_poses_pred, batch_relative_poses_target = get_trajectories(dataset, batch_size,
-                                                                                  prediction_batch, target_batch,
-                                                                                  standardize_targets)
+        batch_relative_poses_pred = get_transformation_matrices(dataset, batch_size,
+                                                                prediction_batch,
+                                                                standardize_targets)
+        batch_relative_poses_target = get_transformation_matrices(dataset, batch_size,
+                                                                  target_batch,
+                                                                  standardize_targets)
         init = batch_size * step
         end = batch_size * (step + 1)
         relative_poses_prediction[init:end] = batch_relative_poses_pred
@@ -50,15 +53,15 @@ def get_absolute_poses(relative_poses, inv=False):
     return absolute_poses
 
 
-def get_trajectories(dataset, batch_size, prediction_batch, target_batch,
-                     standardize_targets):
-    poses_prediction = np.empty((batch_size, 3, 4))
-    poses_target = np.empty((batch_size, 3, 4))
+def get_transformation_matrices(dataset, batch_size, batch,
+                                standardize_targets):
+    transformation_matrices = np.empty((batch_size, 3, 4))
+    # poses_target = np.empty((batch_size, 3, 4))
     for i in xrange(batch_size):
-        prediction = prediction_batch[i]
+        transformation = batch[i]
         # Original scale
         if standardize_targets:
-            prediction = prediction * dataset.targets_std + dataset.targets_mean
+            transformation = transformation * dataset.targets_std + dataset.targets_mean
 
         # prediction = prediction.reshape(3,4)
         # pred_transformation = inverse_intrinsic_matrix * prediction
@@ -67,22 +70,22 @@ def get_trajectories(dataset, batch_size, prediction_batch, target_batch,
         # pred_transf_correction[0:3, 0:3] = u
         # pred_transf_correction[0:3, 3] = pred_transformation[0:3,3].transpose()
 
-        target = target_batch[i]
-        if standardize_targets:
-            target = target * dataset.targets_std + dataset.targets_mean
+        # target = target_batch[i]
+        # if standardize_targets:
+        #    target = target * dataset.targets_std + dataset.targets_mean
         # target = target.reshape(3,4)
         # target_transformation = inverse_intrinsic_matrix * target
         # poses_prediction[i] = pred_transf_correction.reshape(12)
         # poses_target[i] = target_transformation.reshape(12)
 
-        poses_prediction[i] = x_q_to_mtx(prediction)
-        poses_target[i] = x_q_to_mtx(target)
+        transformation_matrices[i] = vector_to_transformation_mtx(transformation)
+        # poses_target[i] = x_q_to_mtx(target)
 
-    return poses_prediction, poses_target
+    return transformation_matrices
 
 
-def x_q_to_mtx(xq):
-    mtx = transformations.quaternion_matrix(xq[3:7])
+def vector_to_transformation_mtx(xq):
+    mtx = transformations.quaternion_matrix(xq[3:])
     mtx[0:3, 3] = xq[0:3]
     out = mtx[0:3, :]
     return out  # .reshape(12)
