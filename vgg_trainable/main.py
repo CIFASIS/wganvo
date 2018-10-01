@@ -180,17 +180,17 @@ def do_evaluation(sess,
             # curr_target_components = se3_to_components(curr_target_s3_matrix)
 
             current_prediction = prediction[i]
-            prediction_quaternion = current_prediction[3:7]
-            euler = transformations.euler_from_quaternion(prediction_quaternion)
-            curr_pred_components = np.hstack((current_prediction[0:3], euler))
+            #prediction_quaternion = current_prediction[3:7]
+            #euler = transformations.euler_from_quaternion(prediction_quaternion)
+            curr_pred_components = current_prediction#np.hstack((current_prediction[0:3], euler))
             current_target = target[i]
-            target_quaternion = current_target[3:7]
-            euler = transformations.euler_from_quaternion(target_quaternion)
-            curr_target_components = np.hstack((current_target[0:3], euler))
+            #target_quaternion = current_target[3:7]
+            #euler = transformations.euler_from_quaternion(target_quaternion)
+            curr_target_components = current_target #np.hstack((current_target[0:3], euler))
 
-            dot = np.dot(target_quaternion, prediction_quaternion)
-            geod_distance = 2 * acos(np.abs(dot))
-            accum_geod_distance += geod_distance
+            #dot = np.dot(target_quaternion, prediction_quaternion)
+            #geod_distance = 2 * acos(np.abs(dot))
+            #accum_geod_distance += geod_distance
             curr_squared_error = np.square(curr_pred_components - curr_target_components)
             squared_errors += curr_squared_error
             # prediction_matrix[index] = curr_pred_components
@@ -205,10 +205,10 @@ def do_evaluation(sess,
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
     rmse_x = np.sqrt(np.sum(squared_errors[0:3]) / num_examples)
-    mean_geod_dist_q = accum_geod_distance / num_examples
+    #mean_geod_dist_q = accum_geod_distance / num_examples
     target_variance = np.var(target_matrix, axis=0)  # variance = std ** 2
     norm_mse = mean_squared_errors / target_variance
-    return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
+    return rmse_x, mean_squared_errors, norm_mse
 
 
 # def frames_vs_abs_distance(relative_poses_prediction, relative_poses_target):
@@ -415,7 +415,7 @@ def run_training():
                     # add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
-                    validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
+                    validation_rmse_x, validation_mse, validation_norm_mse = do_evaluation(sess,
                                                                                                               outputs,
                                                                                                               images_placeholder,
                                                                                                               labels_placeholder,
@@ -432,12 +432,12 @@ def run_training():
                                                                                                               standardize_targets,
                                                                                                               train_mode)
                     add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
-                    add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
+                    #add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
                     add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
                     # Evaluate against the test set.
                     print('Test Data Eval:')
-                    test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
+                    test_rmse_x, test_mse, test_norm_mse = do_evaluation(sess,
                                                                                       outputs,
                                                                                       images_placeholder,
                                                                                       labels_placeholder,
@@ -447,7 +447,7 @@ def run_training():
                                                                                       standardize_targets,
                                                                                       train_mode)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
-                    add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
+                    #add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
 
@@ -468,7 +468,7 @@ def run_training():
                     # add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
 
                     # Keep the best model
-                    v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
+                    v_eval = validation_rmse_x 
                     add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
 
                     if te_eval < our_metric_test_performance:
