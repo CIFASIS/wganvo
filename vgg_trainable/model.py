@@ -83,7 +83,7 @@ def kendall_loss_uncertainty(outputs, targets, sx, sq):
 def acos(x):
     return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966
 
-def kendall_loss_naive(outputs, targets):
+def kendall_loss_naive(outputs, targets, beta=100):
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
     loss_x = tf.norm(outputs_x - targets_x, axis=1)
@@ -93,17 +93,17 @@ def kendall_loss_naive(outputs, targets):
     #dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
     #loss_q = 2 * acos(tf.abs(dot))
     loss_q = tf.norm(targets_q - outputs_q, axis=1)
-    beta = 100
-    #tf.summary.scalar("x_cost", loss_x)
+    tf.summary.scalar("x_cost", loss_x)
     #tf.summary.scalar("abs_x_cost", absolute_x)
-    #tf.summary.scalar("q_scaled_cost", beta * loss_q)
+    tf.summary.scalar("q_scaled_cost", beta * loss_q)
+    tf.summary.scalar("q_cost", loss_q)
     return tf.reduce_mean(loss_x + beta * loss_q ) # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 
 def split_x_q(batch):
     print(batch.shape)
     x = batch[:, 0:3]
-    q = batch[:, 3:7]
+    q = batch[:, 3:]
     return x, q
 
 

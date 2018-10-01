@@ -85,7 +85,7 @@ def get_transformation_matrices(dataset, batch_size, batch,
 
 
 def vector_to_transformation_mtx(xq):
-    mtx = transformations.quaternion_matrix(xq[3:])
+    mtx = transformations.euler_matrix(xq[3], xq[4], xq[5])  # transformations.quaternion_matrix(xq[3:])
     mtx[0:3, 3] = xq[0:3]
     out = mtx[0:3, :]
     return out  # .reshape(12)

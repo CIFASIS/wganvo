@@ -13,7 +13,7 @@ IMAGE_HEIGHT = 96
 IMAGE_WIDTH = 128
 IMAGE_CHANNELS = 2
 IMAGE_PIXELS = IMAGE_HEIGHT * IMAGE_WIDTH
-LABELS_SIZE = 7
+LABELS_SIZE = 6
 DEFAULT_MAIN_KEY = 'arr_0'
 P_FILENAME = "t.npz"
 DEFAULT_LABEL_KEY = "T"
@@ -198,12 +198,11 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
             dst_idx = single_raw_label['dst_idx']
             rt = single_raw_label[DEFAULT_LABEL_KEY]#.reshape(LABELS_SIZE)
             rt = numpy.asmatrix(rt)
-            ax, ay, az = transformations.euler_from_matrix(rt[0:3,0:3])
-            if numpy.abs(numpy.rad2deg(ay)) >= rot_tolerance:
-                q = transformations.quaternion_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
-                label = numpy.array([rt[0,3],rt[1,3],rt[2,3], q[0], q[1], q[2], q[3]])
-                labels.append(label)
-                idxs.append((src_idx, dst_idx))
+            #ax, ay, az = transformations.euler_from_matrix(rt[0:3,0:3])
+            ax, ay, az = transformations.euler_from_matrix(numpy.vstack((rt,[0,0,0,1.])))
+            label = numpy.array([rt[0,3],rt[1,3],rt[2,3], ax, ay, az])
+            labels.append(label)
+            idxs.append((src_idx, dst_idx))
 
         if dir in frames_idx_map:
             raise ValueError("Duplicate directory: " + dir)
@@ -211,7 +210,7 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
     assert rot_tolerance or len(labels) == total_num_examples
 
     # Process images
-    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
+    images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS), dtype=images_dtype)
     groups = numpy.empty(len(labels))
     group_idx = 0
     iter = 0
@@ -237,32 +236,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         gkf = GroupKFold(n_splits=kfold)
         splits = gkf.split(images, labels, groups = (groups % kfold))
     return im, lb, splits, groups
-
-# TODO delete
-def _inputs(dir):
-    main_key = 'arr_0'
-    images_filename = os.path.join(dir,"images.npz")
-    labels_filename = os.path.join(dir,"p.npz")
-    dataset = numpy.load(images_filename)[main_key]
-    raw_labels = numpy.load(labels_filename)[main_key]
-    num_examples = raw_labels.size
-    images = numpy.empty((num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
-    #images = []
-    labels = []
-    for i in range(num_examples):
-        single_raw_label = raw_labels[i]
-        src_idx = single_raw_label['src_idx']
-        dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'].reshape(LABELS_SIZE)
-        labels.append(label)
-        frame_1 = dataset[src_idx]
-        frame_2 = dataset[dst_idx]
-        images[i,...,0] = frame_1
-        images[i,...,1] = frame_2
-        #images.append((frame_1, frame_2))
-    #print images.dtype, images.dtype
-    ### images,
-    return images, numpy.array(labels)
 
 if __name__ == '__main__':
     pass
