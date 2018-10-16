@@ -539,10 +539,10 @@ def VGGDiscriminator(inputs, train_mode, dim=DIM, nonlinearity=tf.nn.relu):
     output = nonlinearity(output)
     output = lib.ops.conv2d.Conv2D('Discriminator.3.2', 4 * dim, 4 * dim, 3, output, stride=1)
     output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.3.3', 4 * dim, 4 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.3.4', 4 * dim, 4 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.3.3', 4 * dim, 4 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.3.4', 4 * dim, 4 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
 
     output = max_pool(output, 'pool3')
 
@@ -550,10 +550,10 @@ def VGGDiscriminator(inputs, train_mode, dim=DIM, nonlinearity=tf.nn.relu):
     output = nonlinearity(output)
     output = lib.ops.conv2d.Conv2D('Discriminator.4.2', 8 * dim, 8 * dim, 3, output, stride=1)
     output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.4.3', 8 * dim, 8 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.4.4', 8 * dim, 8 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.4.3', 8 * dim, 8 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.4.4', 8 * dim, 8 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
 
     output = max_pool(output, 'pool4')
 
@@ -561,10 +561,10 @@ def VGGDiscriminator(inputs, train_mode, dim=DIM, nonlinearity=tf.nn.relu):
     output = nonlinearity(output)
     output = lib.ops.conv2d.Conv2D('Discriminator.5.2', 8 * dim, 8 * dim, 3, output, stride=1)
     output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.5.3', 8 * dim, 8 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.5.4', 8 * dim, 8 * dim, 3, output, stride=1)
-    output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.5.3', 8 * dim, 8 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
+    # output = lib.ops.conv2d.Conv2D('Discriminator.5.4', 8 * dim, 8 * dim, 3, output, stride=1)
+    # output = nonlinearity(output)
 
     output = max_pool(output, 'pool5')
 
