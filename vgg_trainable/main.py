@@ -320,7 +320,7 @@ def run_training():
         # Add to the Graph the Ops for loss calculation.
         # sx = tf.Variable(0., name="regression_sx")
         # sq = tf.Variable(-3., name="regression_sq")
-        loss = model.kendall_loss_naive(outputs, labels_placeholder)  # model.loss(outputs, labels_placeholder)
+        loss = model.kendall_loss_naive(outputs, labels_placeholder, beta=10)  # model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = model.training(loss, FLAGS.learning_rate)
