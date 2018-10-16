@@ -53,7 +53,7 @@ def GeneratorAndDiscriminator():
     uncommenting one of these lines.
     """
 
-    return DCGANGenerator, DCGANDiscriminator
+    return DCGANGenerator, VGGDiscriminator
 
     # For actually generating decent samples, use this one
     # return GoodGenerator, GoodDiscriminator
@@ -510,6 +510,87 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
 
     return tf.reshape(output_disc, [-1]), output_vo
 
+def max_pool(bottom, name):
+    print("Using max pool")
+    return tf.nn.max_pool(bottom, ksize=[1, 1, 2, 2], strides=[1, 1, 2, 2], padding='SAME', data_format='NCHW', name=name)
+
+def VGGDiscriminator(inputs, train_mode, dim=DIM, nonlinearity=tf.nn.relu):
+    output = tf.reshape(inputs, [-1, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH])
+    lib.ops.conv2d.set_weights_stdev(0.02)
+    lib.ops.deconv2d.set_weights_stdev(0.02)
+    lib.ops.linear.set_weights_stdev(0.02)
+    width = IMAGE_WIDTH / 32
+    height = IMAGE_HEIGHT / 32
+    output = lib.ops.conv2d.Conv2D('Discriminator.1.1', IMAGE_CHANNELS, dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.1.2', dim, dim, 3, output, stride=1)
+    output = nonlinearity(output)
+
+    output = max_pool(output, 'pool1')
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.2.1', dim, 2 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.2.2', 2 * dim, 2 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+
+    output = max_pool(output, 'pool2')
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.1', 2 * dim, 4 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.2', 4 * dim, 4 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.3', 4 * dim, 4 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.4', 4 * dim, 4 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+
+    output = max_pool(output, 'pool3')
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.1', 4 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.2', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.3', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.4', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+
+    output = max_pool(output, 'pool4')
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.5.1', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.5.2', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.5.3', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.5.4', 8 * dim, 8 * dim, 3, output, stride=1)
+    output = nonlinearity(output)
+
+    output = max_pool(output, 'pool5')
+
+    output = tf.reshape(output, [-1, height * width * 8 * dim])
+    output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
+
+    dropout = 0.5
+    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 4096, output)
+    relu1 = tf.nn.relu(fc1)
+    drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
+
+    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 4096, 4096, drop1)
+    relu2 = tf.nn.relu(fc2)
+    drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
+    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
+
+    quaternions = output_vo[:, 3:LABELS_SIZE]
+    quaternions_norm = tf.norm(quaternions, axis=1)
+    unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
+    output_vo = tf.concat([output_vo[:, :3], unit_quaternions], 1)
+
+    lib.ops.conv2d.unset_weights_stdev()
+    lib.ops.deconv2d.unset_weights_stdev()
+    lib.ops.linear.unset_weights_stdev()
+
+    return tf.reshape(output_disc, [-1]), output_vo
 
 def vo_cost_function(outputs, targets):
     return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
