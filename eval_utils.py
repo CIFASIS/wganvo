@@ -11,7 +11,7 @@ import trajectory
 
 
 def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
-                         targets_placeholder, train_mode=None):
+                         targets_placeholder, noise_placeholder=None, train_mode=None):
     steps_per_epoch = dataset.num_examples // batch_size
     num_examples = steps_per_epoch * batch_size
     relative_poses_prediction = np.empty((num_examples, 3, 4))
@@ -19,7 +19,8 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
     standardize_targets = False
     #        rmse, mse, norm_mse = do_evaluation(sess,outputs,images_placeholder, targets_placeholder, dataset, batch_size, True)
     for step in xrange(steps_per_epoch):
-        feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True,
+        feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, noise_pl=noise_placeholder,
+                                   feed_with_batch=True,
                                    batch_size=batch_size, shuffle=False, standardize_targets=standardize_targets)
         if train_mode is not None:
             feed_dict[train_mode] = False
@@ -91,7 +92,7 @@ def vector_to_transformation_mtx(xq):
     return out  # .reshape(12)
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_size=None, shuffle=True,
+def fill_feed_dict(data_set, images_pl, labels_pl, noise_pl=None, feed_with_batch=False, batch_size=None, shuffle=True,
                    standardize_targets=False, fake_data=False):
     """Fills the feed_dict for training the given step or for evaluating the entire dataset.
     A feed_dict takes the form of:
@@ -111,10 +112,10 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_
     if (feed_with_batch):
         if (batch_size is None):
             raise ValueError("batch_size not specified")
-        images_feed, labels_feed = data_set.next_batch(batch_size,
-                                                       fake_data,
-                                                       shuffle=shuffle,
-                                                       standardize_targets=standardize_targets)
+        images_feed, labels_feed, noise_feed = data_set.next_batch(batch_size,
+                                                                   fake_data,
+                                                                   shuffle=shuffle,
+                                                                   standardize_targets=standardize_targets)
     # Create the feed_dict for the placeholders filled with the entire dataset
     else:
         images_feed = data_set.images
@@ -124,6 +125,8 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_
         images_pl: images_feed,
         labels_pl: labels_feed,
     }
+    if noise_pl is not None:
+        feed_dict[noise_pl] = noise_feed
     return feed_dict
 
 

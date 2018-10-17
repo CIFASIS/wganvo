@@ -23,7 +23,7 @@ import tflib.ops.layernorm
 import tflib.plot
 
 from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS
-from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
+from vgg_trainable.main import add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
 from vgg_trainable.model import kendall_loss_naive
 from array_utils import load
 import eval_utils
@@ -291,14 +291,14 @@ def DCGANGenerator(n_samples, noise=None, dim=DIM, bn=True, nonlinearity=tf.nn.r
         output = Normalize('Generator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, IMAGE_CHANNELS, 5, output)
+    output = lib.ops.deconv2d.Deconv2D('Generator.5', dim, 1, 5, output)
     output = tf.tanh(output)
 
     lib.ops.conv2d.unset_weights_stdev()
     lib.ops.deconv2d.unset_weights_stdev()
     lib.ops.linear.unset_weights_stdev()
 
-    return tf.reshape(output, [-1, IMAGE_CHANNELS * IMAGE_WIDTH * IMAGE_HEIGHT])
+    return tf.reshape(output, [-1, IMAGE_WIDTH * IMAGE_HEIGHT])
 
 
 def WGANPaper_CrippledDCGANGenerator(n_samples, noise=None, dim=DIM):
@@ -533,11 +533,16 @@ def run(args):
         real_norm_data = 2 * (tf.cast(transposed_all_real_data_conv, tf.float32) - .5)
         real_data = tf.reshape(real_norm_data,
                                [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
-        fake_data = Generator(args.batch_size)
 
+        noise = tf.placeholder(tf.float32, shape=[args.batch_size, 128])
+        fake_target = Generator(args.batch_size, noise=noise)
+        fake_target_sh = tf.reshape(fake_target, [-1, 1, IMAGE_HEIGHT, IMAGE_WIDTH])
+        real_source = real_norm_data[:, 0:1, :, :]
+        fake_data = tf.concat([real_source,fake_target_sh], axis=1)
+        fake_data = tf.reshape(fake_data, [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_CHANNELS])
         train_mode = tf.placeholder(tf.bool, name="train_mode")
 
-        disc_real, disc_real_vo = Discriminator(real_data, train_mode)
+        disc_real, disc_real_vo = Discriminator(real_norm_data, train_mode)
         disc_fake, _ = Discriminator(fake_data, train_mode)
         disc_real_vo = tf.identity(disc_real_vo, name="outputs")
 
@@ -557,8 +562,13 @@ def run(args):
                 minval=0.,
                 maxval=1.
             )
-            differences = fake_data - real_data
-            interpolates = real_data + (alpha * differences)
+            real_target = real_norm_data[:,1:2,:,:]
+            real_target = tf.reshape(real_target,
+                               [args.batch_size, IMAGE_HEIGHT * IMAGE_WIDTH])
+            differences = fake_target - real_target
+            interpolates = real_target + (alpha * differences)
+            interpolates = tf.reshape(interpolates, [-1, 1, IMAGE_HEIGHT, IMAGE_WIDTH])
+            interpolates = tf.concat([real_source, interpolates], axis=1)
             disc_interp, _ = Discriminator(interpolates, train_mode)
             gradients = tf.gradients(disc_interp, [interpolates])[0]
             slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
@@ -654,11 +664,11 @@ def run(args):
         all_fixed_noise_samples = Generator(args.batch_size, noise=fixed_noise)
 
         def generate_image(path, iteration):
-            samples = session.run(all_fixed_noise_samples)
+            samples, rs = session.run(all_fixed_noise_samples, real_source)
             samples = rescale_img(samples)
-            samples = samples.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH))
-            # lib.save_images.save_pair_images(samples, path, iteration)
-            lib.save_images.save_pair_images_grid(samples, path, iteration)
+            samples = samples.reshape((args.batch_size, 1, IMAGE_HEIGHT, IMAGE_WIDTH))
+            lib.save_images.save_pair_images(np.concatenate([rs, samples], axis=1), path, iteration)
+            # lib.save_images.save_pair_images_grid(samples, path, iteration)
 
         def rescale_img(samples):
             return ((samples + 1.) * (255.99 / 2)).astype('int32')
@@ -675,10 +685,11 @@ def run(args):
             # Save a batch of ground-truth samples
             # imgs = session.run(transposed_all_real_data_conv, feed_dict={all_real_data_conv: batch})
             # lib.save_images.save_pair_images(imgs, path, 777)
-            _x_r = session.run(real_data, feed_dict={all_real_data_conv: batch})
-            _x_r = rescale_img(_x_r)
-            lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH)),
-                                             path, iteration, prefix='ground_truth')
+            pass
+            # _x_r = session.run(real_data, feed_dict={all_real_data_conv: batch})
+            # _x_r = rescale_img(_x_r)
+            # lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH)),
+            #                                  path, iteration, prefix='ground_truth')
 
         kfold = 5
         train_images, train_targets, splits, _ = read_data_sets(args.train_data_dir, kfold)
@@ -723,7 +734,15 @@ def run(args):
 
                 # Train generator
                 if iteration > 0:
-                    _ = session.run(gen_train_op)
+                    for i in xrange(2):
+                        feed_dict = eval_utils.fill_feed_dict(train_dataset,
+                                                              all_real_data_conv,
+                                                              vo_targets,
+                                                              True,
+                                                              noise_pl=noise,
+                                                              batch_size=args.batch_size,
+                                                              standardize_targets=standardize_targets)
+                        _ = session.run(gen_train_op, feed_dict=feed_dict)
 
                 # Train critic and VO
                 if (MODE == 'dcgan') or (MODE == 'lsgan'):
@@ -732,12 +751,13 @@ def run(args):
                     disc_iters = CRITIC_ITERS
                 feed_dict = None
                 for i in xrange(disc_iters):
-                    feed_dict = fill_feed_dict(train_dataset,
-                                               all_real_data_conv,
-                                               vo_targets,
-                                               True,
-                                               batch_size=args.batch_size,
-                                               standardize_targets=standardize_targets)
+                    feed_dict = eval_utils.fill_feed_dict(train_dataset,
+                                                          all_real_data_conv,
+                                                          vo_targets,
+                                                          True,
+                                                          noise_pl=noise,
+                                                          batch_size=args.batch_size,
+                                                          standardize_targets=standardize_targets)
                     feed_dict[train_mode] = True
                     # _data = gen.next()
                     _disc_cost, _disc_vo_cost, _, _ = session.run(
@@ -839,7 +859,8 @@ def run(args):
                                                                                            all_real_data_conv,
                                                                                            disc_real_vo,
                                                                                            vo_targets,
-                                                                                           train_mode)
+                                                                                           noise_placeholder=noise,
+                                                                                           train_mode=train_mode)
                     save_txt = iteration == 999 or iteration == 19999 or iteration == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
                                                                curr_fold_log_dir, save_txt)

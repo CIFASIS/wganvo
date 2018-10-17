@@ -64,7 +64,7 @@ class DataSet(object):
     self._index_in_epoch = 0
     self._targets_mean = numpy.mean(labels, axis=0)
     self._targets_std = numpy.std(labels, axis=0) 
-
+    self._noise = numpy.array([numpy.random.normal() for i in range(128 * images.shape[0])]).reshape(images.shape[0],128)
 
   @property
   def targets_mean(self):
@@ -77,6 +77,10 @@ class DataSet(object):
   @property
   def images(self):
     return self._images
+
+  @property
+  def noise(self):
+      return self._noise
 
   @property
   def groups(self):
@@ -102,10 +106,10 @@ class DataSet(object):
     self._index_in_epoch = 0
 
   def next_batch(self, batch_size, fake_data=False, shuffle=True, standardize_targets=False):
-    im, lb = self._next_batch(batch_size, fake_data, shuffle)
+    im, lb, z_noise = self._next_batch(batch_size, fake_data, shuffle)
     if standardize_targets:
         lb = (lb - self._targets_mean) / self._targets_std
-    return im * (1.0 / 255.0), lb
+    return im * (1.0 / 255.0), lb, z_noise
 
   def _next_batch(self, batch_size, fake_data, shuffle):
     """Return the next `batch_size` examples from this data set."""
@@ -125,6 +129,7 @@ class DataSet(object):
       numpy.random.shuffle(perm0)
       self._images = self.images[perm0]
       self._labels = self.labels[perm0]
+      self._noise = self.noise[perm0]
       if self.groups is not None:
         self._groups = self.groups[perm0]
     # Go to the next epoch
@@ -135,12 +140,14 @@ class DataSet(object):
       rest_num_examples = self._num_examples - start
       images_rest_part = self._images[start:self._num_examples]
       labels_rest_part = self._labels[start:self._num_examples]
+      noise_rest_part = self._noise[start:self._num_examples]
       # Shuffle the data
       if shuffle:
         perm = numpy.arange(self._num_examples)
         numpy.random.shuffle(perm)
         self._images = self.images[perm]
         self._labels = self.labels[perm]
+        self._noise = self.noise[perm]
         if self.groups is not None:
           self._groups = self.groups[perm]
       # Start next epoch
@@ -149,11 +156,12 @@ class DataSet(object):
       end = self._index_in_epoch
       images_new_part = self._images[start:end]
       labels_new_part = self._labels[start:end]
-      return numpy.concatenate((images_rest_part, images_new_part), axis=0) , numpy.concatenate((labels_rest_part, labels_new_part), axis=0)
+      noise_new_part = self._noise[start:end]
+      return numpy.concatenate((images_rest_part, images_new_part), axis=0) , numpy.concatenate((labels_rest_part, labels_new_part), axis=0), numpy.concatenate((noise_rest_part, noise_new_part), axis=0)
     else:
       self._index_in_epoch += batch_size
       end = self._index_in_epoch
-      return self._images[start:end], self._labels[start:end]
+      return self._images[start:end], self._labels[start:end], self._noise[start:end]
 
 
 
