@@ -28,6 +28,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import tfquaternions
 
 MATRIX_MATCH_TOLERANCE = 1e-4
 
@@ -66,8 +67,8 @@ def kendall_loss_uncertainty(outputs, targets, sx, sq):
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
     loss_x = tf.norm(outputs_x - targets_x, axis=1)
-    #q_norm = tf.norm(outputs_q, axis=1)
-    #loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
+    # q_norm = tf.norm(outputs_q, axis=1)
+    # loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
     dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
     loss_q = 2 * tf.acos(tf.abs(dot))
     print(loss_x.shape)
@@ -80,24 +81,79 @@ def kendall_loss_uncertainty(outputs, targets, sx, sq):
     tf.summary.scalar("noise_q", noise_q)
     return tf.reduce_mean(loss_x * noise_x + sx + loss_q * noise_q + sq)
 
+
 def acos(x):
     return (-0.69813170079773212 * x * x - 0.87266462599716477) * x + 1.5707963267948966
+
 
 def kendall_loss_naive(outputs, targets):
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
     loss_x = tf.norm(outputs_x - targets_x, axis=1)
-    #absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
-    #q_norm = tf.norm(outputs_q, axis=1)
-    #loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
-    #dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
-    #loss_q = 2 * acos(tf.abs(dot))
+    # absolute_x = tf.reduce_mean(tf.abs(tf.subtract(outputs_x, targets_x)))
+    # q_norm = tf.norm(outputs_q, axis=1)
+    # loss_q = tf.norm(targets_q - outputs_q / tf.reshape(q_norm, (-1, 1)), axis=1)
+    # dot = tf.reduce_sum(tf.multiply(targets_q, outputs_q), 1, keepdims=True)
+    # loss_q = 2 * acos(tf.abs(dot))
     loss_q = tf.norm(targets_q - outputs_q, axis=1)
     beta = 100
-    #tf.summary.scalar("x_cost", loss_x)
-    #tf.summary.scalar("abs_x_cost", absolute_x)
-    #tf.summary.scalar("q_scaled_cost", beta * loss_q)
-    return tf.reduce_mean(loss_x + beta * loss_q ) # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+    # tf.summary.scalar("x_cost", loss_x)
+    # tf.summary.scalar("abs_x_cost", absolute_x)
+    # tf.summary.scalar("q_scaled_cost", beta * loss_q)
+    return tf.reduce_mean(loss_x + beta * loss_q)  # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
+
+
+def kendall_reprojection_loss(outputs, targets):
+    outputs_x, outputs_q = split_x_q(outputs)
+    targets_x, targets_q = split_x_q(targets)
+    outputs_q = tfquaternions.Quaternion(outputs_q).as_rotation_matrix()
+    targets_q = tfquaternions.Quaternion(targets_q).as_rotation_matrix()
+    # inv_outputs_q = tf.linalg.inv(outputs_q)
+    inv_targets_q = tf.linalg.inv(targets_q)  # shape=(B,3,3)
+    N = 500
+    pts = get_pts(N)
+    # repr(outputs_x,inv_outputs_q,pts)
+    targets_x = tf.reshape(targets_x, (targets_x.shape[0], targets_x.shape[1], 1))
+    outputs_x = tf.reshape(outputs_x, (outputs_x.shape[0], outputs_x.shape[1], 1))
+    pts_3d = get_pts_3d(targets_x, inv_targets_q, pts)
+    loss_t = repr(targets_x, targets_q, pts_3d) # shape=(B*N,2)
+    loss_q = repr(outputs_x, outputs_q, pts_3d)
+    return tf.reduce_mean(tf.norm(loss_t - loss_q, axis=1))
+
+
+def repr(x, q, g):
+    B = q.shape[0]
+    N = g.shape[0]
+    q = tf.tile(q, [N, 1, 1])
+    g = tf.tile(g, [B, 1, 1])
+    x = tf.tile(x, [N, 1, 1])
+
+    res = tf.matmul(q, g) + x
+    res = res[:, 0:2, :] / res[:, 2:3, :]
+    res = tf.reshape(res, ([res.shape[0], res.shape[1]]))
+    return res
+
+
+def get_pts_3d(x, q_inv, pts):  # Sample 3d points
+    B = q_inv.shape[0]
+    N = pts.shape[0]
+    q_inv = tf.tile(q_inv, [N, 1, 1])
+    pts = tf.tile(pts, [B, 1, 1])
+    x = tf.tile(x, [N, 1, 1])
+    return tf.matmul(q_inv, pts - x)
+
+
+def get_pts(N):
+    w = 128
+    h = 96
+    maxint = 100
+    a = tf.random_uniform(shape=[N], maxval=w, dtype='int32')
+    b = tf.random_uniform(shape=[N], maxval=h, dtype='int32')
+    pts = tf.stack([a, b], axis=1)
+    c = tf.random_normal(shape=[N, 1]) * maxint
+    pts = tf.concat([tf.cast(pts, tf.float32) * c, c], axis=1)  # shape=(N,3)
+    pts = tf.reshape(pts, (-1, 3, 1))  # shape=(N,3,1)
+    return pts
 
 
 def split_x_q(batch):

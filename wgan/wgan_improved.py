@@ -24,7 +24,7 @@ import tflib.plot
 
 from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
-from vgg_trainable.model import kendall_loss_naive
+from vgg_trainable.model import kendall_loss_naive, kendall_reprojection_loss
 from array_utils import load
 import eval_utils
 
@@ -550,8 +550,8 @@ def run(args):
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
-            disc_vo_cost = kendall_loss_naive(disc_real_vo,
-                                              vo_targets)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            disc_vo_cost = kendall_reprojection_loss(disc_real_vo,
+                                                     vo_targets)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
