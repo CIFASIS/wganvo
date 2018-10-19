@@ -116,16 +116,13 @@ def kendall_reprojection_loss(outputs, targets):
     targets_x = tf.reshape(targets_x, (targets_x.shape[0], targets_x.shape[1], 1))
     outputs_x = tf.reshape(outputs_x, (outputs_x.shape[0], outputs_x.shape[1], 1))
     pts_3d = get_pts_3d(targets_x, inv_targets_q, pts)
-    loss_t = repr(targets_x, targets_q, pts_3d) # shape=(B*N,2)
-    loss_q = repr(outputs_x, outputs_q, pts_3d)
+    loss_t = repr(targets_x, targets_q, pts_3d, N) # shape=(B*N,2)
+    loss_q = repr(outputs_x, outputs_q, pts_3d, N)
     return tf.reduce_mean(tf.norm(loss_t - loss_q, axis=1))
 
 
-def repr(x, q, g):
-    B = q.shape[0]
-    N = g.shape[0]
+def repr(x, q, g, N):
     q = tf.tile(q, [N, 1, 1])
-    g = tf.tile(g, [B, 1, 1])
     x = tf.tile(x, [N, 1, 1])
 
     res = tf.matmul(q, g) + x
