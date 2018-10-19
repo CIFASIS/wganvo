@@ -128,6 +128,7 @@ def do_evaluation(sess,
         input_data.read_data_sets().
     """
     import transformations
+    import eval_utils
     rows_reshape = 3
     columns_reshape = 4
     components_vector_size = 6
@@ -141,7 +142,7 @@ def do_evaluation(sess,
     squared_errors = np.zeros(components_vector_size, dtype="float32")
     accum_geod_distance = 0.
     for step in xrange(steps_per_epoch):
-        feed_dict = fill_feed_dict(data_set,
+        feed_dict = eval_utils.fill_feed_dict(data_set,
                                    images_placeholder,
                                    labels_placeholder,
                                    feed_with_batch=True,

@@ -664,10 +664,10 @@ def run(args):
         all_fixed_noise_samples = Generator(args.batch_size, noise=fixed_noise)
 
         def generate_image(path, iteration):
-            samples, rs = session.run(all_fixed_noise_samples, real_source)
+            samples = session.run(all_fixed_noise_samples)
             samples = rescale_img(samples)
             samples = samples.reshape((args.batch_size, 1, IMAGE_HEIGHT, IMAGE_WIDTH))
-            lib.save_images.save_pair_images(np.concatenate([rs, samples], axis=1), path, iteration)
+            lib.save_images.save_pair_images(np.concatenate([samples, samples], axis=1), path, iteration)
             # lib.save_images.save_pair_images_grid(samples, path, iteration)
 
         def rescale_img(samples):
@@ -738,7 +738,7 @@ def run(args):
                         feed_dict = eval_utils.fill_feed_dict(train_dataset,
                                                               all_real_data_conv,
                                                               vo_targets,
-                                                              True,
+                                                              feed_with_batch=True,
                                                               noise_pl=noise,
                                                               batch_size=args.batch_size,
                                                               standardize_targets=standardize_targets)
@@ -754,7 +754,7 @@ def run(args):
                     feed_dict = eval_utils.fill_feed_dict(train_dataset,
                                                           all_real_data_conv,
                                                           vo_targets,
-                                                          True,
+                                                          feed_with_batch=True,
                                                           noise_pl=noise,
                                                           batch_size=args.batch_size,
                                                           standardize_targets=standardize_targets)
