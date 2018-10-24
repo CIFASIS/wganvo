@@ -309,7 +309,8 @@ def run_training():
         train_mode = tf.placeholder(tf.bool, name="train_mode")
 
         ccn = cclay.CrossConvolutionalNet(int(images_placeholder.shape[2]), int(images_placeholder.shape[1]), activation_function='relu')
-        outputs = ccn.build(images_placeholder, train_mode)
+        outputs, tz_mean, tz_stddev, tz_stddev_log = ccn.build(images_placeholder, train_mode)
+        tf.summary.scalar('z_mean', tf.reduce_mean(tz_mean))
         # Build a Graph that computes predictions from the inference model.
         #outputs = model.inference(images_placeholder, train_mode, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
 
@@ -322,7 +323,7 @@ def run_training():
         # Add to the Graph the Ops for loss calculation.
         # sx = tf.Variable(0., name="regression_sx")
         # sq = tf.Variable(-3., name="regression_sq")
-        loss = ccn.buildLoss(outputs, labels_placeholder)  # model.loss(outputs, labels_placeholder)
+        loss = ccn.buildLoss(outputs, labels_placeholder) + model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = ccn.trainOp(loss, FLAGS.learning_rate)
@@ -372,8 +373,8 @@ def run_training():
             # Start the training loop.
             total_loss = 0.0
             step_ccn = 0
-            sample_z_mean = np.zeros(model.z_mean.get_shape().as_list())
-            sample_z_stddev_log = np.zeros(model.z_stddev_log.get_shape().as_list())
+            sample_z_mean = np.zeros(tz_mean.get_shape().as_list())
+            sample_z_stddev_log = np.zeros(tz_stddev_log.get_shape().as_list())
             sample_step = 0
             for step in xrange(FLAGS.max_steps):
                 start_time = time.time()
@@ -392,7 +393,7 @@ def run_training():
                 # inspect the values of your Ops or variables, you may include them
                 # in the list passed to sess.run() and the value tensors will be
                 # returned in the tuple from the call.
-                _, loss_value, z_mean, z_stddev_log = sess.run([train_op, loss, ccn.z_mean, ccn.z_stddev_log],
+                _, loss_value, z_mean, z_stddev_log = sess.run([train_op, loss, tz_mean, tz_stddev_log],
                                          feed_dict=feed_dict)
                 sample_z_mean += z_mean
                 sample_z_stddev_log += z_stddev_log
@@ -419,9 +420,9 @@ def run_training():
                     with tf.gfile.Open(
                             os.path.join(curr_fold_log_path, 'z_stddev_log.npy'), 'w') as f:
                         np.save(f, sample_z_stddev_log / sample_step)
-                    sample_z_mean = np.zeros(ccn.z_mean.get_shape().as_list())
+                    sample_z_mean = np.zeros(tz_mean.get_shape().as_list())
                     sample_z_stddev_log = np.zeros(
-                        ccn.z_stddev_log.get_shape().as_list())
+                        tz_stddev_log.get_shape().as_list())
                     sample_step = 0
 
                     # Evaluate against the training set.

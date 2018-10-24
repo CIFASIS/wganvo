@@ -5,7 +5,7 @@ from functools import reduce
 import math
 
 # VGG_MEAN = [103.939, 116.779, 123.68]
-
+slim = tf.contrib.slim
 
 class CrossConvolutionalNet:
 
@@ -104,7 +104,7 @@ class CrossConvolutionalNet:
 
 
 
-        return self.fc8
+        return self.fc8, self.z_mean, self.z_stddev, self.z_stddev_log
 
     def trainOp(self, loss, learning_rate):
         global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -123,9 +123,9 @@ class CrossConvolutionalNet:
         # 3. It seems kl loss doesn't play an important role.
         self.loss = 0
         with tf.variable_scope('loss'):
-            l2_loss = tf.reduce_mean(tf.square(output - targets))
-            tf.summary.scalar('l2_loss', l2_loss)
-            self.loss += l2_loss
+            #l2_loss = tf.reduce_mean(tf.square(output - targets))
+            #tf.summary.scalar('l2_loss', l2_loss)
+            #self.loss += l2_loss
             # if self.params['reconstr_loss']:
             #     reconstr_loss = (-tf.reduce_mean(
             #         self.diffs[1] * (1e-10 + self.diff_output) +
@@ -138,9 +138,9 @@ class CrossConvolutionalNet:
                 tf.square(self.z_mean) + tf.square(self.z_stddev) -
                 2 * self.z_stddev_log - 1))
             tf.summary.scalar('kl_loss', kl_loss)
-            self.loss += kl_loss
+            #self.loss += kl_loss
 
-            tf.summary.scalar('loss', self.loss)
+            tf.summary.scalar('cnnloss', self.loss)
             return self.loss
 
 
@@ -196,12 +196,13 @@ class CrossConvolutionalNet:
         print("Using relu")
         return tf.nn.relu(features)
 
-    def conv_layer(self, bottom, in_channels, out_channels, name, filter_size=3, stride=1):
+    def conv_layer(self, bottom, in_channels, out_channels, name, filter_size=3, stride=1, padding='SAME',normalizer_fn=slim.batch_norm):
         with tf.variable_scope(name):
-            filt, conv_biases = self.get_conv_var(filter_size, in_channels, out_channels, name)
+            #filt, conv_biases = self.get_conv_var(filter_size, in_channels, out_channels, name)
 
-            conv = tf.nn.conv2d(bottom, filt, [1, stride, stride, 1], padding='SAME')
-            bias = tf.nn.bias_add(conv, conv_biases)
+            #conv = tf.nn.conv2d(bottom, filt, [1, stride, stride, 1], padding='SAME')
+            #bias = tf.nn.bias_add(conv, conv_biases)
+            slim.conv2d(bottom,out_channels, [filter_size,filter_size], normalizer_fn=normalizer_fn, stride=stride, padding=padding)
             act_funct = self.activation_function_tensor(bias, act_function=self.activation_function)
 
             return act_funct
