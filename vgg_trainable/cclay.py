@@ -84,8 +84,8 @@ class CrossConvolutionalNet:
         ###############################################################################
 
         dec = self.deconv(cross_conved_image, 64, kernel_size=3, stride=2)
-        fc_in_size = 64 * 64 * 48
-        self.fc6 = self.fc_layer(dec, fc_in_size, 4096, "fc6")
+        fc_in_size = int(dec.shape[1]) * int(dec.shape[2]) * int(dec.shape[3])
+        self.fc6 = self.fc_layer(dec, fc_in_size, 1024, "fc6")
         self.relu6 = self.activation_function_tensor(self.fc6,
                                                      act_function=self.activation_function)  # tf.nn.relu(self.fc6)
         if train_mode is not None:
@@ -95,15 +95,7 @@ class CrossConvolutionalNet:
             print("Not Train Mode placeholder")
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
-        self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = self.activation_function_tensor(self.fc7,
-                                                     act_function=self.activation_function)  # tf.nn.relu(self.fc7)
-        if train_mode is not None:
-            self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, self.dropout), lambda: self.relu7)
-        elif self.trainable:
-            self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
-
-        self.fc8 = self.fc_layer(self.relu7, 4096, 7, "fc8")
+        self.fc8 = self.fc_layer(self.relu6, 1024, 7, "fc8")
         quaternions = self.fc8[:, 3:7]
         quaternions_norm = tf.norm(quaternions, axis=1)
         unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
