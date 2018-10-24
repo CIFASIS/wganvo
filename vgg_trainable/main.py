@@ -308,8 +308,10 @@ def run_training():
         #    data_sets.train.num_examples)
         train_mode = tf.placeholder(tf.bool, name="train_mode")
 
+        ccn = cclay.CrossConvolutionalNet(int(images_placeholder.shape[2]), int(images_placeholder.shape[1]), activation_function='relu')
+        outputs = ccn.build(images_placeholder, train_mode)
         # Build a Graph that computes predictions from the inference model.
-        outputs = model.inference(images_placeholder, train_mode, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
+        #outputs = model.inference(images_placeholder, train_mode, FLAGS.pruned_vgg, FLAGS.pooling, FLAGS.act_function)
 
         # Rename
         outputs = tf.identity(outputs, name="outputs")
@@ -398,7 +400,7 @@ def run_training():
                     summary_writer.add_summary(summary_str, step)
                     summary_writer.flush()
                 # Save a checkpoint and evaluate the model periodically.
-                if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+                if False: #(step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
                     # Evaluate against the training set.
 
                     # print('Training Data Eval:')
@@ -506,6 +508,7 @@ if __name__ == '__main__':
     import input_data
     import model
     import eval_utils
+    import cclay
     import trajectory
     import lie_algebra
     from array_utils import load
