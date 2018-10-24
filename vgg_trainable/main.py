@@ -285,8 +285,8 @@ def run_training():
     # Get the sets of images and labels for training, validation, and
     # test on MNIST.
     kfold = 5
-    train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
-    test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
+    # train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+    # test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
 
     # intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
     # if FLAGS.test_intrinsics_dir:

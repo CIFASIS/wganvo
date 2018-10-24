@@ -21,31 +21,31 @@ class CrossConvolutionalNet:
         self.activation_function = activation_function
         self.width = width
         self.height = height
+        self.train_mode = None
 
-    def build(self, images, train_mode=None, pooling_type="max"):
+    def build(self, images, train_mode, pooling_type="max"):
         """
         load variable from npy to build the VGG
         :param images: [batch, height, width, channels] (usually a placeholder)
         :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
         """
+        self.train_mode = train_mode
+        self.conv1_1 = self.conv_layer(images, 2, 32, "conv1_1",filter_size=5,stride=1, padding='VALID')
+        self.pool1 = self.pooling(self.conv1_1, 'pool1', pooling_type=pooling_type)
+        self.conv1_2 = self.conv_layer(self.pool1, 32, 32, "conv1_2",filter_size=5,stride=1, padding='VALID')
+        self.pool1_1 = self.pooling(self.conv1_2, 'pool1_2', pooling_type=pooling_type)
 
-        self.conv1_1 = self.conv_layer(images, 2, 96, "conv1_1",filter_size=5,stride=1)
-        self.conv1_2 = self.conv_layer(self.conv1_1, 96, 96, "conv1_2",filter_size=5,stride=1)
-        self.pool1 = self.pooling(self.conv1_2, 'pool1', pooling_type=pooling_type)
-
-        self.conv2_1 = self.conv_layer(self.pool1, 96, 128, "conv2_1",filter_size=5,stride=1)
-        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2",filter_size=5,stride=1)
+        self.conv2_1 = self.conv_layer(self.pool1_1, 32, 50, "conv2_1",filter_size=5,stride=1, padding='VALID')
+        self.conv2_2 = self.conv_layer(self.conv2_1, 50, 50, "conv2_2",filter_size=5,stride=1, padding='VALID')
         self.pool2 = self.pooling(self.conv2_2, 'pool2', pooling_type=pooling_type)
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",filter_size=5,stride=1)
-        self.pool3 = self.pooling(self.conv3_1, 'pool3', pooling_type=pooling_type)
-        self.conv3_2 = self.conv_layer(self.pool3, 256, 256, "conv3_2",filter_size=5,stride=1)
-        self.pool3_1 = self.pooling(self.conv3_2, 'pool3_1', pooling_type=pooling_type)
+        self.conv3_1 = self.conv_layer(self.pool2, 50, 50, "conv3_1",filter_size=4,stride=1, padding='VALID')
+        self.conv3_2 = self.conv_layer(self.conv3_1, 50, 50, "conv3_2",filter_size=3,stride=1, padding='SAME')
         # 256 * 6 * 8
         batch_size = int(images.shape[0])
-        fc_in_size = ((self.width // (2 ** 4)) * (self.height // (2 ** 4))) * 256
-        self.fc1 = self.fc_layer(self.pool3_1, fc_in_size, 1600, "fc1")
-        z = tf.reshape(self.fc1, shape=[batch_size, -1])
+        #fc_in_size = ((self.width // (2 ** 4)) * (self.height // (2 ** 4))) * 256
+        #self.fc1 = self.fc_layer(self.pool3_1, fc_in_size, 1600, "fc1")
+        z = tf.reshape(self.conv3_2, shape=[batch_size, -1])
         self.z_mean, self.z_stddev_log = tf.split(
             axis=1, num_or_size_splits=2, value=z)
 
@@ -202,10 +202,10 @@ class CrossConvolutionalNet:
 
             #conv = tf.nn.conv2d(bottom, filt, [1, stride, stride, 1], padding='SAME')
             #bias = tf.nn.bias_add(conv, conv_biases)
-            slim.conv2d(bottom,out_channels, [filter_size,filter_size], normalizer_fn=normalizer_fn, stride=stride, padding=padding)
-            act_funct = self.activation_function_tensor(bias, act_function=self.activation_function)
+            return slim.conv2d(bottom,out_channels, [filter_size,filter_size], normalizer_fn=normalizer_fn, normalizer_params={'is_training': self.train_mode} ,stride=stride, padding=padding)
+            #act_funct = self.activation_function_tensor(bias, act_function=self.activation_function)
 
-            return act_funct
+            #return act_funct
 
     def fc_layer(self, bottom, in_size, out_size, name):
         with tf.variable_scope(name):
