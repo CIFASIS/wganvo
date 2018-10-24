@@ -38,13 +38,13 @@ class CrossConvolutionalNet:
         self.pool2 = self.pooling(self.conv2_2, 'pool2', pooling_type=pooling_type)
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",filter_size=5,stride=1)
-        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",filter_size=5,stride=1)
-        self.pool3 = self.pooling(self.conv3_2, 'pool3', pooling_type=pooling_type)
+        #self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",filter_size=5,stride=1)
+        self.pool3 = self.pooling(self.conv3_1, 'pool3', pooling_type=pooling_type)
         # 256 * 12 * 16
         batch_size = int(images.shape[0])
         fc_in_size = ((self.width // (2 ** 3)) * (self.height // (2 ** 3))) * 256
-        self.fc6 = self.fc_layer(self.pool3, fc_in_size, 6400, "fc6")
-        z = tf.reshape(self.fc6, shape=[batch_size, -1])
+        self.fc1 = self.fc_layer(self.pool3, fc_in_size, 6400, "fc1")
+        z = tf.reshape(self.fc1, shape=[batch_size, -1])
         self.z_mean, self.z_stddev_log = tf.split(
             axis=1, num_or_size_splits=2, value=z)
 
@@ -85,7 +85,7 @@ class CrossConvolutionalNet:
 
         dec = self.deconv(cross_conved_image, 64, kernel_size=3, stride=2)
         fc_in_size = int(dec.shape[1]) * int(dec.shape[2]) * int(dec.shape[3])
-        self.fc6 = self.fc_layer(dec, fc_in_size, 1024, "fc6")
+        self.fc6 = self.fc_layer(dec, fc_in_size, 512, "fc6")
         self.relu6 = self.activation_function_tensor(self.fc6,
                                                      act_function=self.activation_function)  # tf.nn.relu(self.fc6)
         if train_mode is not None:
@@ -95,7 +95,7 @@ class CrossConvolutionalNet:
             print("Not Train Mode placeholder")
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
-        self.fc8 = self.fc_layer(self.relu6, 1024, 7, "fc8")
+        self.fc8 = self.fc_layer(self.relu6, 512, 7, "fc8")
         quaternions = self.fc8[:, 3:7]
         quaternions_norm = tf.norm(quaternions, axis=1)
         unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
