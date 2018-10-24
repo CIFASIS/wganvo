@@ -322,10 +322,10 @@ def run_training():
         # Add to the Graph the Ops for loss calculation.
         # sx = tf.Variable(0., name="regression_sx")
         # sq = tf.Variable(-3., name="regression_sq")
-        loss = model.kendall_loss_naive(outputs, labels_placeholder)  # model.loss(outputs, labels_placeholder)
+        loss = ccn.buildLoss(outputs, labels_placeholder)  # model.loss(outputs, labels_placeholder)
 
         # Add to the Graph the Ops that calculate and apply gradients.
-        train_op = model.training(loss, FLAGS.learning_rate)
+        train_op = ccn.trainOp(loss, FLAGS.learning_rate)
 
         # Add the Op to compare the logits to the labels during evaluation.
         # evaluation = model.evaluation(outputs, labels_placeholder)
@@ -370,6 +370,11 @@ def run_training():
             # Run the Op to initialize the variables.
             sess.run(init)
             # Start the training loop.
+            total_loss = 0.0
+            step_ccn = 0
+            sample_z_mean = np.zeros(model.z_mean.get_shape().as_list())
+            sample_z_stddev_log = np.zeros(model.z_stddev_log.get_shape().as_list())
+            sample_step = 0
             for step in xrange(FLAGS.max_steps):
                 start_time = time.time()
                 # Fill a feed dictionary with the actual set of images and labels
@@ -387,8 +392,13 @@ def run_training():
                 # inspect the values of your Ops or variables, you may include them
                 # in the list passed to sess.run() and the value tensors will be
                 # returned in the tuple from the call.
-                _, loss_value = sess.run([train_op, loss],
+                _, loss_value, z_mean, z_stddev_log = sess.run([train_op, loss, ccn.z_mean, ccn.z_stddev_log],
                                          feed_dict=feed_dict)
+                sample_z_mean += z_mean
+                sample_z_stddev_log += z_stddev_log
+                #total_loss += loss_value
+                #step_ccn += 1
+                sample_step += 1
 
                 # Write the summaries and print an overview fairly often.
                 if step % 100 == 0:
@@ -399,8 +409,21 @@ def run_training():
                     summary_str = sess.run(summary, feed_dict=feed_dict)
                     summary_writer.add_summary(summary_str, step)
                     summary_writer.flush()
+                    total_loss = 0.0
+                    #step_ccn = 0
                 # Save a checkpoint and evaluate the model periodically.
-                if False: #(step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+                if (step + 1) % 1000 == 0: #or (step + 1) == FLAGS.max_steps:
+
+                    with tf.gfile.Open(os.path.join(curr_fold_log_path, 'z_mean.npy'), 'w') as f:
+                        np.save(f, sample_z_mean / sample_step)
+                    with tf.gfile.Open(
+                            os.path.join(curr_fold_log_path, 'z_stddev_log.npy'), 'w') as f:
+                        np.save(f, sample_z_stddev_log / sample_step)
+                    sample_z_mean = np.zeros(ccn.z_mean.get_shape().as_list())
+                    sample_z_stddev_log = np.zeros(
+                        ccn.z_stddev_log.get_shape().as_list())
+                    sample_step = 0
+
                     # Evaluate against the training set.
 
                     # print('Training Data Eval:')
@@ -416,78 +439,78 @@ def run_training():
                     # add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
                     # add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
-                    print('Validation Data Eval:')
-                    validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
-                                                                                                              outputs,
-                                                                                                              images_placeholder,
-                                                                                                              labels_placeholder,
-                                                                                                              input_data.DataSet(
-                                                                                                                  train_images[
-                                                                                                                      validation_indexs],
-                                                                                                                  train_targets[
-                                                                                                                      validation_indexs],
-                                                                                                                  train_groups[
-                                                                                                                      validation_indexs],
-                                                                                                                  fake_data=FLAGS.fake_data),
-                                                                                                              FLAGS.batch_size,
-                                                                                                              # intrinsic_matrix,
-                                                                                                              standardize_targets,
-                                                                                                              train_mode)
-                    add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
-                    add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
-                    add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
-                    add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
-                    # Evaluate against the test set.
-                    print('Test Data Eval:')
-                    test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
-                                                                                      outputs,
-                                                                                      images_placeholder,
-                                                                                      labels_placeholder,
-                                                                                      test_dataset,
-                                                                                      FLAGS.batch_size,
-                                                                                      # test_intrinsic_matrix,
-                                                                                      standardize_targets,
-                                                                                      train_mode)
-                    add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
-                    add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
-                    add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
-                    add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
-
-                    test_dataset.reset_epoch()
-
-                    print("Test Eval:")
-                    relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset,
-                                                                                           FLAGS.batch_size,
-                                                                                           images_placeholder, outputs,
-                                                                                           labels_placeholder,
-                                                                                           train_mode)
-                    save_txt = step == 999 or step == 19999 or step == 39999
-                    te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
-                                                               curr_fold_log_path, save_txt)
-                    print(te_eval)
-                    add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, step)
-                    # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
-                    # add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
-
-                    # Keep the best model
-                    v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
-                    add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
-
-                    if te_eval < our_metric_test_performance:
-                        our_metric_test_performance = te_eval
-                        our_metric_last_improvement = step
-                        checkpoint_file = os.path.join(curr_fold_log_path, 'our-metric-vgg-model')
-                        our_metric_saver.save(sess, checkpoint_file, global_step=step)
-
-                    if v_eval < best_validation_performance:
-                        best_validation_performance = v_eval
-                        last_improvement = step
-                        checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
-                        saver.save(sess, checkpoint_file, global_step=step)
-                    if step - last_improvement > require_improvement:
-                        print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (
-                            last_improvement))
-                        break
+                    # print('Validation Data Eval:')
+                    # validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
+                    #                                                                                           outputs,
+                    #                                                                                           images_placeholder,
+                    #                                                                                           labels_placeholder,
+                    #                                                                                           input_data.DataSet(
+                    #                                                                                               train_images[
+                    #                                                                                                   validation_indexs],
+                    #                                                                                               train_targets[
+                    #                                                                                                   validation_indexs],
+                    #                                                                                               train_groups[
+                    #                                                                                                   validation_indexs],
+                    #                                                                                               fake_data=FLAGS.fake_data),
+                    #                                                                                           FLAGS.batch_size,
+                    #                                                                                           # intrinsic_matrix,
+                    #                                                                                           standardize_targets,
+                    #                                                                                           train_mode)
+                    # add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
+                    # add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
+                    # add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
+                    # add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
+                    # # Evaluate against the test set.
+                    # print('Test Data Eval:')
+                    # test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
+                    #                                                                   outputs,
+                    #                                                                   images_placeholder,
+                    #                                                                   labels_placeholder,
+                    #                                                                   test_dataset,
+                    #                                                                   FLAGS.batch_size,
+                    #                                                                   # test_intrinsic_matrix,
+                    #                                                                   standardize_targets,
+                    #                                                                   train_mode)
+                    # add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
+                    # add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
+                    # add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
+                    # add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
+                    #
+                    # test_dataset.reset_epoch()
+                    #
+                    # print("Test Eval:")
+                    # relative_prediction, relative_target = eval_utils.infer_relative_poses(sess, test_dataset,
+                    #                                                                        FLAGS.batch_size,
+                    #                                                                        images_placeholder, outputs,
+                    #                                                                        labels_placeholder,
+                    #                                                                        train_mode)
+                    # save_txt = step == 999 or step == 19999 or step == 39999
+                    # te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
+                    #                                            curr_fold_log_path, save_txt)
+                    # print(te_eval)
+                    # add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, step)
+                    # # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)
+                    # # add_scalar_to_tensorboard(mean_ape_rmse_rot, "test_mean_ape_rmse_rot", summary_writer, step)
+                    #
+                    # # Keep the best model
+                    # v_eval = (validation_rmse_x + 100 * validation_dist_q) / 2
+                    # add_scalar_to_tensorboard(v_eval, "v_eval", summary_writer, step)
+                    #
+                    # if te_eval < our_metric_test_performance:
+                    #     our_metric_test_performance = te_eval
+                    #     our_metric_last_improvement = step
+                    #     checkpoint_file = os.path.join(curr_fold_log_path, 'our-metric-vgg-model')
+                    #     our_metric_saver.save(sess, checkpoint_file, global_step=step)
+                    #
+                    # if v_eval < best_validation_performance:
+                    #     best_validation_performance = v_eval
+                    #     last_improvement = step
+                    #     checkpoint_file = os.path.join(curr_fold_log_path, 'vgg-model')
+                    #     saver.save(sess, checkpoint_file, global_step=step)
+                    # if step - last_improvement > require_improvement:
+                    #     print("No improvement found in a while, stopping optimization. Last improvement = step %d" % (
+                    #         last_improvement))
+                    #     break
         total_duration = time.time() - total_start_time
         print('Total: %.3f sec' % (total_duration))
 
@@ -536,7 +559,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.01,
+        default=0.1,
         help='Initial learning rate.'
     )
     parser.add_argument(

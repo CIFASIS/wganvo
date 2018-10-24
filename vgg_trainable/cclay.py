@@ -106,6 +106,44 @@ class CrossConvolutionalNet:
 
         return self.fc8
 
+    def trainOp(self, loss, learning_rate):
+        global_step = tf.Variable(0, name='global_step', trainable=False)
+        lrn_rate = tf.maximum(
+            0.01,  # min_lr_rate.
+            tf.train.exponential_decay(
+                learning_rate, global_step, 10000, 0.5))
+        tf.summary.scalar('learning rate', lrn_rate)
+        optimizer = tf.train.AdamOptimizer(lrn_rate)
+        train_op = optimizer.minimize(loss, global_step=global_step)
+        return train_op
+
+    def buildLoss(self, output, targets):
+        # 1. reconstr_loss seems doesn't do better than l2 loss.
+        # 2. Only works when using reduce_mean. reduce_sum doesn't work.
+        # 3. It seems kl loss doesn't play an important role.
+        self.loss = 0
+        with tf.variable_scope('loss'):
+            l2_loss = tf.reduce_mean(tf.square(output - targets))
+            tf.summary.scalar('l2_loss', l2_loss)
+            self.loss += l2_loss
+            # if self.params['reconstr_loss']:
+            #     reconstr_loss = (-tf.reduce_mean(
+            #         self.diffs[1] * (1e-10 + self.diff_output) +
+            #         (1 - self.diffs[1]) * tf.log(1e-10 + 1 - self.diff_output)))
+            #     reconstr_loss = tf.check_numerics(reconstr_loss, 'reconstr_loss')
+            #     tf.summary.scalar('reconstr_loss', reconstr_loss)
+            #     self.loss += reconstr_loss
+
+            kl_loss = (0.5 * tf.reduce_mean(
+                tf.square(self.z_mean) + tf.square(self.z_stddev) -
+                2 * self.z_stddev_log - 1))
+            tf.summary.scalar('kl_loss', kl_loss)
+            self.loss += kl_loss
+
+            tf.summary.scalar('loss', self.loss)
+            return self.loss
+
+
     def crossConvHelper(self, encoded_image, kernel):
         """Cross Convolution.
           The encoded image and kernel are of the same shape. Namely
