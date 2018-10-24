@@ -38,12 +38,13 @@ class CrossConvolutionalNet:
         self.pool2 = self.pooling(self.conv2_2, 'pool2', pooling_type=pooling_type)
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",filter_size=5,stride=1)
-        #self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",filter_size=5,stride=1)
         self.pool3 = self.pooling(self.conv3_1, 'pool3', pooling_type=pooling_type)
-        # 256 * 12 * 16
+        self.conv3_2 = self.conv_layer(self.pool3, 256, 256, "conv3_2",filter_size=5,stride=1)
+        self.pool3_1 = self.pooling(self.conv3_2, 'pool3_1', pooling_type=pooling_type)
+        # 256 * 6 * 8
         batch_size = int(images.shape[0])
-        fc_in_size = ((self.width // (2 ** 3)) * (self.height // (2 ** 3))) * 256
-        self.fc1 = self.fc_layer(self.pool3, fc_in_size, 6400, "fc1")
+        fc_in_size = ((self.width // (2 ** 4)) * (self.height // (2 ** 4))) * 256
+        self.fc1 = self.fc_layer(self.pool3_1, fc_in_size, 1600, "fc1")
         z = tf.reshape(self.fc1, shape=[batch_size, -1])
         self.z_mean, self.z_stddev_log = tf.split(
             axis=1, num_or_size_splits=2, value=z)
@@ -52,25 +53,25 @@ class CrossConvolutionalNet:
         epsilon = tf.random_normal(
             self.z_mean.get_shape().as_list(), 0, 1, dtype=tf.float32)
         kernel = self.z_mean + tf.multiply(self.z_stddev, epsilon)
-        width = int(math.sqrt(kernel.get_shape().as_list()[1] // 128))
-        kernel = tf.reshape(kernel, [batch_size, width, width, 128])
+        width = int(math.sqrt(kernel.get_shape().as_list()[1] // 32))
+        kernel = tf.reshape(kernel, [batch_size, width, width, 32])
 
-        kernel = self.conv_layer(kernel, 128, 128, "convk_1", filter_size=5, stride=1)
-        kernel = self.conv_layer(kernel, 128, 128, "convk_2", filter_size=5, stride=1)
+        kernel = self.conv_layer(kernel, 32, 32, "convk_1", filter_size=5, stride=1)
+        #kernel = self.conv_layer(kernel, 128, 128, "convk_2", filter_size=5, stride=1)
 
         ##############################################################################
 
         self.conv4_1 = self.conv_layer(images[...,0:1], 1, 64, "conv4_1",filter_size=5,stride=1)
-        self.conv4_2 = self.conv_layer(self.conv4_1, 64, 64, "conv4_2",filter_size=5,stride=1)
-        self.pool4 = self.pooling(self.conv4_2, 'pool4', pooling_type=pooling_type, ksize=5)
+        #self.conv4_2 = self.conv_layer(self.conv4_1, 64, 64, "conv4_2",filter_size=5,stride=1)
+        self.pool4 = self.pooling(self.conv4_1, 'pool4', pooling_type=pooling_type, ksize=5)
 
-        self.conv5_1 = self.conv_layer(self.pool4, 64, 64, "conv5_1", filter_size=5, stride=1)
-        self.conv5_2 = self.conv_layer(self.conv5_1, 64, 32, "conv5_2", filter_size=5, stride=1)
-        encoded_image = self.pooling(self.conv5_2, 'pool5', pooling_type=pooling_type, ksize=2)
+        self.conv5_1 = self.conv_layer(self.pool4, 64, 32, "conv5_1", filter_size=5, stride=1)
+        #self.conv5_2 = self.conv_layer(self.conv5_1, 64, 32, "conv5_2", filter_size=5, stride=1)
+        encoded_image = self.pooling(self.conv5_1, 'pool5', pooling_type=pooling_type, ksize=2)
         ##############################################################################
 
-        kernels = tf.split(axis=3, num_or_size_splits=4, value=kernel)
-        kernel = kernels[0]
+        #kernels = tf.split(axis=3, num_or_size_splits=4, value=kernel)
+        #kernel = kernels[0]
         kernel = tf.unstack(kernel, axis=0) # LISTA de kernels, esta lista tiene longitud batch_size
         encoded_image = tf.unstack(encoded_image, axis=0)
         assert len(encoded_image) == len(kernel)
