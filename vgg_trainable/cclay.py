@@ -107,6 +107,7 @@ class CrossConvolutionalNet:
         return self.fc8, self.z_mean, self.z_stddev, self.z_stddev_log
 
     def trainOp(self, loss, learning_rate):
+        tf.summary.scalar('total_loss', loss)
         global_step = tf.Variable(0, name='global_step', trainable=False)
         lrn_rate = tf.maximum(
             0.01,  # min_lr_rate.
@@ -138,9 +139,9 @@ class CrossConvolutionalNet:
                 tf.square(self.z_mean) + tf.square(self.z_stddev) -
                 2 * self.z_stddev_log - 1))
             tf.summary.scalar('kl_loss', kl_loss)
-            #self.loss += kl_loss
+            self.loss += kl_loss
 
-            tf.summary.scalar('cnnloss', self.loss)
+            #tf.summary.scalar('cnnloss', self.loss)
             return self.loss
 
 
