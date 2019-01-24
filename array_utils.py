@@ -4,7 +4,7 @@
 
 import numpy as np
 
-def save(name, array, fmt='%1.6f'):
+def save_txt(name, array, fmt='%1.6f'):
     np.savetxt(name + '.txt', array, delimiter=' ', fmt=fmt)
 
 def load(name):
@@ -15,3 +15,9 @@ def save_as_list(name, array, fmt='%1.6f'):
     
 def list_to_array(list):
     return np.array(list)
+
+def save_npy(name, arr):
+    np.save(name, arr)
+
+def load_npy(name):
+    return np.load(name)

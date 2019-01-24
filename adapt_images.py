@@ -6,7 +6,7 @@ import csv
 from image import load_image, crop_image, scale_image, savez_compressed
 from camera_model import CameraModel
 from transform import build_se3_transform, build_intrinsic_matrix
-from array_utils import save_as_list, list_to_array, save
+from array_utils import save_as_list, list_to_array, save_txt
 import numpy as np
 
 
@@ -105,13 +105,13 @@ def main():
     angles = np.array(angles_records, dtype=[('ang',('float64',6)),('src_idx', 'int32'),('dst_idx', 'int32')])
     # Solo lo guardo una vez porque es constante para todo el dataset (o deberia serlo)
     if intrinsic_matrix is not None:
-        save(os.path.join(output_dir,"intrinsic_matrix"), intrinsic_matrix)
-        save(os.path.join(output_dir,"intrinsic_parameters"), [focal_length, principal_point])
+        save_txt(os.path.join(output_dir,"intrinsic_matrix"), intrinsic_matrix)
+        save_txt(os.path.join(output_dir,"intrinsic_parameters"), [focal_length, principal_point])
     #path = os.path.normpath(args.dir)
     #folders = path.split(os.sep)
     #compressed_file_path = os.path.join(output_dir, folders[-3])
     result = list_to_array(result_list)
-    save(os.path.join(output_dir, 'images_shape'), result.shape, fmt='%i')
+    save_txt(os.path.join(output_dir, 'images_shape'), result.shape, fmt='%i')
     print result.shape
     compressed_file_path = os.path.join(output_dir, 'images')
     savez_compressed(compressed_file_path, result)
