@@ -89,6 +89,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_
     """
     # Create the feed_dict for the placeholders filled with the next
     # `batch size` examples.
+    assert False # Deprecated Usar el de eval_utils
     if (feed_with_batch):
         if (batch_size is None):
             raise ValueError("batch_size not specified")

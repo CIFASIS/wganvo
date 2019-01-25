@@ -103,54 +103,61 @@ def kendall_loss_naive(outputs, targets):
     return tf.reduce_mean(loss_x + beta * loss_q)  # tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
 
-def kendall_reprojection_loss(outputs, targets):
+# pts3D -> Bx3xN
+def kendall_reprojection_loss(outputs, targets, pts_3D):
     outputs_x, outputs_q = split_x_q(outputs)
     targets_x, targets_q = split_x_q(targets)
     outputs_q = tfquaternions.Quaternion(outputs_q).as_rotation_matrix()
-    targets_q = tfquaternions.Quaternion(targets_q).as_rotation_matrix()
+    targets_q = tfquaternions.Quaternion(targets_q).as_rotation_matrix() # shape=(B,3,3)
     # inv_outputs_q = tf.linalg.inv(outputs_q)
-    inv_targets_q = tf.linalg.inv(targets_q)  # shape=(B,3,3)
-    N = 500
-    pts = get_pts(N)
+    # inv_targets_q = tf.linalg.inv(targets_q)  # shape=(B,3,3)
+    # pts = get_pts(N) # shape=(N,3,1)
     # repr(outputs_x,inv_outputs_q,pts)
     targets_x = tf.reshape(targets_x, (targets_x.shape[0], targets_x.shape[1], 1))
     outputs_x = tf.reshape(outputs_x, (outputs_x.shape[0], outputs_x.shape[1], 1))
-    pts_3d = get_pts_3d(targets_x, inv_targets_q, pts)
-    loss_t = repr(targets_x, targets_q, pts_3d, N) # shape=(B*N,2)
-    loss_q = repr(outputs_x, outputs_q, pts_3d, N)
+    #pts_3D = tf.reshape(pts_3D, (pts_3D.shape[0], pts_3D.shape[1], 1))
+    # pts_3d = get_pts_3d(targets_x, inv_targets_q, pts)
+    loss_t = repr(targets_x, targets_q, pts_3D)  # shape=(B,3,N)
+    loss_q = repr(outputs_x, outputs_q, pts_3D)
     return tf.reduce_mean(tf.norm(loss_t - loss_q, axis=1))
 
-
-def repr(x, q, g, N):
-    q = tf.tile(q, [N, 1, 1])
-    x = tf.tile(x, [N, 1, 1])
+# x -> Bx3x1
+# q -> Bx3x4
+# g -> Bx3xN
+# Output: Bx3xN
+def repr(x, q, g):
+    # N = g.shape[0]
+    # B = q.shape[0]
+    # q = tf.tile(q, [N, 1, 1])
+    # x = tf.tile(x, [N, 1, 1])
+    # g = tf.tile(g, [B, 1, 1])
 
     res = tf.matmul(q, g) + x
-    res = res[:, 0:2, :] / res[:, 2:3, :]
-    res = tf.reshape(res, ([res.shape[0], res.shape[1]]))
+    # res = res[:, 0:2, :] / res[:, 2:3, :]
+    #res = tf.reshape(res, ([res.shape[0], res.shape[1]]))
     return res
 
 
-def get_pts_3d(x, q_inv, pts):  # Sample 3d points
-    B = q_inv.shape[0]
-    N = pts.shape[0]
-    q_inv = tf.tile(q_inv, [N, 1, 1])
-    pts = tf.tile(pts, [B, 1, 1])
-    x = tf.tile(x, [N, 1, 1])
-    return tf.matmul(q_inv, pts - x)
-
-
-def get_pts(N):
-    w = 128
-    h = 96
-    maxint = 100
-    a = tf.random_uniform(shape=[N], maxval=w, dtype='int32')
-    b = tf.random_uniform(shape=[N], maxval=h, dtype='int32')
-    pts = tf.stack([a, b], axis=1)
-    c = tf.random_normal(shape=[N, 1]) * maxint
-    pts = tf.concat([tf.cast(pts, tf.float32) * c, c], axis=1)  # shape=(N,3)
-    pts = tf.reshape(pts, (-1, 3, 1))  # shape=(N,3,1)
-    return pts
+# def get_pts_3d(x, q_inv, pts):  # Sample 3d points
+#     B = q_inv.shape[0]
+#     N = pts.shape[0]
+#     q_inv = tf.tile(q_inv, [N, 1, 1])
+#     pts = tf.tile(pts, [B, 1, 1])
+#     x = tf.tile(x, [N, 1, 1])
+#     return tf.matmul(q_inv, pts - x)
+#
+#
+# def get_pts(N):
+#     w = 128
+#     h = 96
+#     maxint = 100
+#     a = tf.random_uniform(shape=[N], maxval=w, dtype='int32')
+#     b = tf.random_uniform(shape=[N], maxval=h, dtype='int32')
+#     pts = tf.stack([a, b], axis=1)
+#     c = tf.random_normal(shape=[N, 1]) * maxint
+#     pts = tf.concat([tf.cast(pts, tf.float32) * c, c], axis=1)  # shape=(N,3)
+#     pts = tf.reshape(pts, (-1, 3, 1))  # shape=(N,3,1)
+#     return pts
 
 
 def split_x_q(batch):

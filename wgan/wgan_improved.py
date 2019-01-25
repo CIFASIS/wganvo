@@ -22,7 +22,7 @@ import tflib.small_imagenet
 import tflib.ops.layernorm
 import tflib.plot
 
-from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS
+from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS, IMAGE_POINTS
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
 from vgg_trainable.model import kendall_loss_naive, kendall_reprojection_loss
 from array_utils import load
@@ -523,6 +523,9 @@ def run(args):
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
+        points = tf.placeholder(tf.float32,
+                                            shape=[args.batch_size, 3, IMAGE_POINTS],
+                                            name="train_points_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
         # Mediante tf.transpose se pasa a NCHW
@@ -551,7 +554,7 @@ def run(args):
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
             disc_vo_cost = kendall_reprojection_loss(disc_real_vo,
-                                                     vo_targets)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+                                                     vo_targets, points)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -681,15 +684,15 @@ def run(args):
                                              path, iteration, prefix='ground_truth')
 
         kfold = 5
-        train_images, train_targets, splits, _ = read_data_sets(args.train_data_dir, kfold)
-        test_images, test_targets, _, test_groups = read_data_sets(args.test_data_dir)
+        train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold)
+        test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
         # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         # if args.test_intrinsics_file:
         #     test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
         # else:
         #     test_intrinsic_matrix = intrinsic_matrix
 
-        test_dataset = DataSet(test_images, test_targets, test_groups)
+        test_dataset = DataSet(test_images, test_targets, groups=test_groups)
         summary = tf.summary.merge_all()
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
@@ -702,7 +705,7 @@ def run(args):
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs])
+            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], points=train_points)
             saver = tf.train.Saver(max_to_keep=1)
             our_metric_saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
@@ -732,10 +735,11 @@ def run(args):
                     disc_iters = CRITIC_ITERS
                 feed_dict = None
                 for i in xrange(disc_iters):
-                    feed_dict = fill_feed_dict(train_dataset,
+                    feed_dict = eval_utils.fill_feed_dict(train_dataset,
                                                all_real_data_conv,
                                                vo_targets,
-                                               True,
+                                               points,
+                                               feed_with_batch=True,
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
                     feed_dict[train_mode] = True
