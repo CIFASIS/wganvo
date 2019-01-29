@@ -18,6 +18,9 @@ _iter = [0]
 def tick():
     _iter[0] += 1
 
+def get_global_iter():
+    return _iter[0]
+
 
 def plot(name, value):
     _since_last_flush[name][_iter[0]] = value

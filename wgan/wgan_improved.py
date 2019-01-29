@@ -539,6 +539,7 @@ def run(args):
         fake_data = Generator(args.batch_size)
 
         train_mode = tf.placeholder(tf.bool, name="train_mode")
+        global_iter = tf.placeholder(tf.int32, name="global_iter")
 
         disc_real, disc_real_vo = Discriminator(real_data, train_mode)
         disc_fake, _ = Discriminator(fake_data, train_mode)
@@ -553,8 +554,10 @@ def run(args):
             disc_cost = tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real)
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
-            disc_vo_cost = kendall_reprojection_loss(disc_real_vo,
-                                                     vo_targets, points)  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            print(args.repr_loss_since)
+            disc_vo_cost = tf.cond(global_iter < args.repr_loss_since, true_fn=kendall_loss_naive(disc_real_vo, vo_targets),
+                                   false_fn=kendall_reprojection_loss(disc_real_vo,
+                                                     vo_targets, points))  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -570,6 +573,7 @@ def run(args):
             tf.summary.scalar('gen_cost', gen_cost)
             tf.summary.scalar('disc_cost', disc_cost)
             tf.summary.scalar('vo_cost', disc_vo_cost)
+            tf.summary.scalar('global_iterr', global_iter)
 
         elif MODE == 'dcgan':
             try:  # tf pre-1.0 (bottom) vs 1.0 (top)
@@ -743,6 +747,7 @@ def run(args):
                                                batch_size=args.batch_size,
                                                standardize_targets=standardize_targets)
                     feed_dict[train_mode] = True
+                    feed_dict[global_iter] = lib.plot.get_global_iter()
                     # _data = gen.next()
                     _disc_cost, _disc_vo_cost, _, _ = session.run(
                         [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
@@ -901,6 +906,12 @@ if __name__ == '__main__':
         type=int,
         default=100,
         help='Batch size.  Must divide evenly into the dataset sizes.'
+    )
+    parser.add_argument(
+        '--repr_loss_since',
+        type=int,
+        default=5000,
+        help='Uses Repr loss when global iter is greater than this number'
     )
     parser.add_argument(
         '--log_dir',
