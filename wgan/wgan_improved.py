@@ -684,7 +684,7 @@ def run(args):
                                              path, iteration, prefix='ground_truth')
 
         kfold = 5
-        train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold)
+        train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,load_points=True)
         test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
         # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         # if args.test_intrinsics_file:

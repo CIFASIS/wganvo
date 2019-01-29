@@ -174,7 +174,7 @@ class DataSet(object):
 def get_list_of_subdirectories(data_dir):
     return [os.path.join(data_dir, item) for item in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, item))]
 
-def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
+def read_data_sets(data_dir, kfold=None, load_points=False,rot_tolerance=0.):
     list_dir = get_list_of_subdirectories(data_dir)#[os.path.join(train_data_dir, item) for item in os.listdir(train_data_dir) if os.path.isdir(os.path.join(train_data_dir, item))]
     #test_list_dir = get_list_of_subdirectories(test_data_dir)
     #if validation_data_dir is not None:
@@ -184,7 +184,7 @@ def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
     # FIXME obtener desde train data
     #    validation_images, validation_labels = _inputs(
     #        "/home/cremona/workspace/train/2014-05-06-12-54-54_stereo_centre_01")
-    return _get_images_and_labels(list_dir, kfold=kfold)
+    return _get_images_and_labels(list_dir, kfold=kfold, load_points=load_points)
     #test_images, test_labels, _ = _get_images_and_labels(test_list_dir)
 
 
@@ -194,7 +194,7 @@ def read_data_sets(data_dir, kfold=None, rot_tolerance=0.):
     #test = DataSet(test_images, test_labels, fake_data=fake_data)
     #return Datasets(train=train, cross_validation_splits=cross_validation_splits, test=test)
 
-def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None):
+def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="float32", kfold=None, load_points=False):
     total_num_examples = 0
     labels = []
     frames_idx_map = {}
@@ -225,14 +225,17 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
 
     # Process images
     images = numpy.empty((len(labels), IMAGE_HEIGHT, IMAGE_WIDTH, 2), dtype=images_dtype)
-    points = numpy.empty((len(labels), 3, IMAGE_POINTS))
+    points = None
+    if load_points:
+        points = numpy.empty((len(labels), 3, IMAGE_POINTS))
     groups = numpy.empty(len(labels))
     group_idx = 0
     iter = 0
     for dir in list_of_subdir:
         images_filename = os.path.join(dir, "images.npz")
         dataset = numpy.load(images_filename)[DEFAULT_MAIN_KEY]
-        data_points = numpy.load(os.path.join(dir, "points.npy"))
+        if load_points:
+            data_points = numpy.load(os.path.join(dir, "points.npy"))
         assert dataset.dtype == images_dtype
         if dir not in frames_idx_map:
                 raise ValueError(dir + " directory")
@@ -241,7 +244,8 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         for (src_idx, dst_idx) in frames_idx_map[dir]:
                 images[iter,...,0] = dataset[src_idx]# * (1.0 / 255.0)
                 images[iter,...,1] = dataset[dst_idx]# * (1.0 / 255.0)
-                points[iter] = data_points[dst_idx]
+                if load_points:
+                    points[iter] = data_points[dst_idx]
                 # Images from the same dir must be in the same fold. See GroupKFold from sklearn.
                 groups[iter] = group_idx
                 iter += 1
@@ -254,31 +258,6 @@ def _get_images_and_labels(list_of_subdir, images_dtype="uint8", labels_dtype="f
         splits = gkf.split(images, labels, groups = (groups % kfold))
     return im, lb, splits, groups, points
 
-# TODO delete
-def _inputs(dir):
-    main_key = 'arr_0'
-    images_filename = os.path.join(dir,"images.npz")
-    labels_filename = os.path.join(dir,"p.npz")
-    dataset = numpy.load(images_filename)[main_key]
-    raw_labels = numpy.load(labels_filename)[main_key]
-    num_examples = raw_labels.size
-    images = numpy.empty((num_examples, IMAGE_HEIGHT, IMAGE_WIDTH, 2))
-    #images = []
-    labels = []
-    for i in range(num_examples):
-        single_raw_label = raw_labels[i]
-        src_idx = single_raw_label['src_idx']
-        dst_idx = single_raw_label['dst_idx']
-        label = single_raw_label['P'].reshape(LABELS_SIZE)
-        labels.append(label)
-        frame_1 = dataset[src_idx]
-        frame_2 = dataset[dst_idx]
-        images[i,...,0] = frame_1
-        images[i,...,1] = frame_2
-        #images.append((frame_1, frame_2))
-    #print images.dtype, images.dtype
-    ### images,
-    return images, numpy.array(labels)
 
 if __name__ == '__main__':
     pass
