@@ -89,7 +89,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl, feed_with_batch=False, batch_
     """
     # Create the feed_dict for the placeholders filled with the next
     # `batch size` examples.
-    assert False # Deprecated Usar el de eval_utils
+    assert False  # Deprecated Usar el de eval_utils
     if (feed_with_batch):
         if (batch_size is None):
             raise ValueError("batch_size not specified")
@@ -142,13 +142,13 @@ def do_evaluation(sess,
     squared_errors = np.zeros(components_vector_size, dtype="float32")
     accum_geod_distance = 0.
     for step in xrange(steps_per_epoch):
-        feed_dict = fill_feed_dict(data_set,
-                                   images_placeholder,
-                                   labels_placeholder,
-                                   feed_with_batch=True,
-                                   shuffle=False,
-                                   batch_size=batch_size,
-                                   standardize_targets=standardize_targets)
+        feed_dict = eval_utils.fill_feed_dict(data_set,
+                                              images_placeholder,
+                                              labels_placeholder,
+                                              feed_with_batch=True,
+                                              shuffle=False,
+                                              batch_size=batch_size,
+                                              standardize_targets=standardize_targets)
         if train_mode is not None:
             feed_dict[train_mode] = False
         prediction, target = sess.run([outputs, labels_placeholder], feed_dict=feed_dict)
@@ -286,8 +286,8 @@ def run_training():
     # Get the sets of images and labels for training, validation, and
     # test on MNIST.
     kfold = 5
-    train_images, train_targets, splits, train_groups = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
-    test_images, test_targets, _, test_groups = input_data.read_data_sets(FLAGS.test_data_dir)
+    train_images, train_targets, splits, train_groups, train_points = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+    test_images, test_targets, _, test_groups, _ = input_data.read_data_sets(FLAGS.test_data_dir)
 
     # intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
     # if FLAGS.test_intrinsics_dir:
@@ -304,7 +304,9 @@ def run_training():
         images_placeholder, labels_placeholder = placeholder_inputs(
             FLAGS.batch_size, images_placeholder_name="images_placeholder",
             targets_placeholder_name="targets_placeholder")
-
+        points = tf.placeholder(tf.float32,
+                                shape=[FLAGS.batch_size, 3, input_data.IMAGE_POINTS],
+                                name="train_points_placeholder")
         # train_dataset_images_placeholder, train_dataset_labels_placeholder = placeholder_inputs(
         #    data_sets.train.num_examples)
         train_mode = tf.placeholder(tf.bool, name="train_mode")
@@ -359,7 +361,7 @@ def run_training():
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = input_data.DataSet(train_images[train_indexs], train_targets[train_indexs],
-                                               fake_data=FLAGS.fake_data)
+                                               fake_data=FLAGS.fake_data, points=train_points)
             fwriter_str = "fold_" + str(current_fold)
             curr_fold_log_path = os.path.join(FLAGS.log_dir, fwriter_str)
             # Instantiate a SummaryWriter to output summaries and the Graph.
@@ -373,12 +375,13 @@ def run_training():
                 start_time = time.time()
                 # Fill a feed dictionary with the actual set of images and labels
                 # for this particular training step.
-                feed_dict = fill_feed_dict(train_dataset,
-                                           images_placeholder,
-                                           labels_placeholder,
-                                           feed_with_batch=True,
-                                           batch_size=FLAGS.batch_size,
-                                           standardize_targets=standardize_targets)
+                feed_dict = eval_utils.fill_feed_dict(train_dataset,
+                                                      images_placeholder,
+                                                      labels_placeholder,
+                                                      points_pl=points,
+                                                      feed_with_batch=True,
+                                                      batch_size=FLAGS.batch_size,
+                                                      standardize_targets=standardize_targets)
                 feed_dict[train_mode] = True
 
                 # Run one step of the model.  The return values are the activations

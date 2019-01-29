@@ -22,7 +22,8 @@ import tflib.small_imagenet
 import tflib.ops.layernorm
 import tflib.plot
 
-from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS, IMAGE_POINTS
+from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS, \
+    IMAGE_POINTS
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
 from vgg_trainable.model import kendall_loss_naive, kendall_reprojection_loss
 from array_utils import load
@@ -524,8 +525,8 @@ def run(args):
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
         points = tf.placeholder(tf.float32,
-                                            shape=[args.batch_size, 3, IMAGE_POINTS],
-                                            name="train_points_placeholder")
+                                shape=[args.batch_size, 3, IMAGE_POINTS],
+                                name="train_points_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
 
         # Mediante tf.transpose se pasa a NCHW
@@ -555,9 +556,11 @@ def run(args):
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
             print(args.repr_loss_since)
-            disc_vo_cost = tf.cond(global_iter < args.repr_loss_since, true_fn=kendall_loss_naive(disc_real_vo, vo_targets),
-                                   false_fn=kendall_reprojection_loss(disc_real_vo,
-                                                     vo_targets, points))  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            disc_vo_cost = tf.cond(global_iter < args.repr_loss_since,
+                                   true_fn=lambda: kendall_loss_naive(disc_real_vo, vo_targets),
+                                   false_fn=lambda: kendall_reprojection_loss(disc_real_vo,
+                                                                              vo_targets,
+                                                                              points))  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -688,7 +691,8 @@ def run(args):
                                              path, iteration, prefix='ground_truth')
 
         kfold = 5
-        train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,load_points=True)
+        train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,
+                                                                              load_points=True)
         test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
         # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         # if args.test_intrinsics_file:
@@ -740,12 +744,12 @@ def run(args):
                 feed_dict = None
                 for i in xrange(disc_iters):
                     feed_dict = eval_utils.fill_feed_dict(train_dataset,
-                                               all_real_data_conv,
-                                               vo_targets,
-                                               points,
-                                               feed_with_batch=True,
-                                               batch_size=args.batch_size,
-                                               standardize_targets=standardize_targets)
+                                                          all_real_data_conv,
+                                                          vo_targets,
+                                                          points_pl=points,
+                                                          feed_with_batch=True,
+                                                          batch_size=args.batch_size,
+                                                          standardize_targets=standardize_targets)
                     feed_dict[train_mode] = True
                     feed_dict[global_iter] = lib.plot.get_global_iter()
                     # _data = gen.next()

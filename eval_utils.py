@@ -91,7 +91,7 @@ def vector_to_transformation_mtx(xq):
     return out  # .reshape(12)
 
 
-def fill_feed_dict(data_set, images_pl, labels_pl, points_pl, feed_with_batch=False, batch_size=None, shuffle=True,
+def fill_feed_dict(data_set, images_pl, labels_pl, points_pl=None, feed_with_batch=False, batch_size=None, shuffle=True,
                    standardize_targets=False, fake_data=False):
     """Fills the feed_dict for training the given step or for evaluating the entire dataset.
     A feed_dict takes the form of:
@@ -124,8 +124,10 @@ def fill_feed_dict(data_set, images_pl, labels_pl, points_pl, feed_with_batch=Fa
     feed_dict = {
         images_pl: images_feed,
         labels_pl: labels_feed,
-        points_pl: points,
+        #points_pl: points,
     }
+    if points_pl is not None:
+        feed_dict[points_pl] = points
     return feed_dict
 
 
