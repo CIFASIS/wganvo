@@ -133,20 +133,17 @@ def main():
 
         # Triangulate points
         pts_l, pts_r = matcher(left_img, right_img)
-        # Row i represents the i'th pose of the left camera coordinate system (i.e., z pointing forwards) via a 3x4 transformation matrix
-        # The matrices take a point in the i'th coordinate system and project it into the first (=0th) coordinate system
-        # (i.e., camera -> world)
-        R = vector_to_homogeneous(poses[i])
-        # We need world -> camera
-        Rt = np.linalg.inv(R)
 
-        P1 = left_calibration_matrix * Rt
-        P2 = right_calibration_matrix * Rt
-
+        P1 = left_calibration_matrix
+        P2 = right_calibration_matrix
+        # X's points are in camera coordinates
         X = triangulatePoints(P1, P2, pts_l, pts_r)
 
         # Randomly select N points
-        random_selection = np.random.choice(X.shape[1], N, replace=False)
+        replace = X.shape[1] <= N
+        if replace:
+            print(X.shape[1])
+        random_selection = np.random.choice(X.shape[1], N, replace=replace)
         X = X[:3, random_selection]
         cloud_points[i] = X
 
@@ -158,8 +155,8 @@ def main():
         assert isinstance(modified_img,
                           np.ndarray) and modified_img.dtype == np.uint8  # and modified_img.flags.contiguous
         images_list.append(modified_img)
-    print(original_resolution)
     save_npy(os.path.join(output_dir, 'points'), cloud_points)
+    print(original_resolution)
     compressed_images = list_to_array(images_list)
     print compressed_images.shape
 
@@ -175,7 +172,6 @@ def main():
     #    [left_calibration_matrix[0, 0], left_calibration_matrix[1, 1]], [left_calibration_matrix[0, 2], left_calibration_matrix[1, 2]],
     #    original_resolution, crop=crop, scale=scale)
     # new_intrinsic_matrix = build_intrinsic_matrix(new_focal_length, new_principal_point)
-
     assert len(left_image_filenames) == len(poses)
     mirror = np.asmatrix(np.diag((-1, 1, 1)))
     # In this case mirror = mirror^(-1)

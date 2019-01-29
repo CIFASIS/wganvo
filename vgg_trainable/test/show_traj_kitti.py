@@ -57,7 +57,7 @@ def show(images, poses, pred_poses=None, points=None):
             lin.set_xdata(data[:idx,0])
             lin.set_ydata(data[:idx,1])
             lin.set_3d_properties(data[:idx,2])
-        scatter._offsets3d = (points[num,0], points[num,1], points[num,2])
+        #scatter._offsets3d = (points[num,0], points[num,1], points[num,2])
         return lines
 
     #assert len(images) == len(poses)
@@ -67,16 +67,16 @@ def show(images, poses, pred_poses=None, points=None):
     plt.show()
 
 def main():
-    images,_,_,_ = read_data_sets(FLAGS.img_file)
+    images,_,_,_, points = read_data_sets(FLAGS.img_file)
     poses = np.loadtxt(FLAGS.poses, delimiter=" ")
     poses_pred = None
     if FLAGS.poses_pred != None:
         poses_pred = np.loadtxt(FLAGS.poses_pred, delimiter=" ")
         poses_pred = poses_pred.reshape((-1, 3, 4))
         poses_pred = poses_pred[:, 0:3, 3]
-    points = None
-    if FLAGS.points != None:
-        points = np.load(FLAGS.points)
+    # points = None
+    # if FLAGS.points != None:
+    #     points = np.load(FLAGS.points)
 
     last = images[-1][..., 1]
     last = last.reshape((-1,last.shape[0],last.shape[1]))
@@ -89,8 +89,8 @@ def main():
     poses = poses[:, 0:3, 3]
     # print(poses.shape)
     #print(poses_pred.shape)
-    print(points.shape)
-    show(im, poses, poses_pred, points)
+    # print(points.shape)
+    show(im, poses, poses_pred)
 
 
 if __name__ == '__main__':
