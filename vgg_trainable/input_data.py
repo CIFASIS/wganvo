@@ -17,7 +17,7 @@ LABELS_SIZE = 7
 DEFAULT_MAIN_KEY = 'arr_0'
 P_FILENAME = "t.npz"
 DEFAULT_LABEL_KEY = "T"
-IMAGE_POINTS = 200
+IMAGE_POINTS = 150
 class DataSet(object):
   def __init__(self,
                images,
