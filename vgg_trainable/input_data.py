@@ -161,13 +161,18 @@ class DataSet(object):
       end = self._index_in_epoch
       images_new_part = self._images[start:end]
       labels_new_part = self._labels[start:end]
+      batch_points = None
       if self.points is not None:
           points_new_part = self._points[start:end]
-      return numpy.concatenate((images_rest_part, images_new_part), axis=0) , numpy.concatenate((labels_rest_part, labels_new_part), axis=0), numpy.concatenate((points_rest_part, points_new_part), axis=0)
+          batch_points = numpy.concatenate((points_rest_part, points_new_part), axis=0)
+      return numpy.concatenate((images_rest_part, images_new_part), axis=0) , numpy.concatenate((labels_rest_part, labels_new_part), axis=0), batch_points
     else:
       self._index_in_epoch += batch_size
       end = self._index_in_epoch
-      return self._images[start:end], self._labels[start:end], self._points[start:end]
+      batch_points = None
+      if self.points is not None:
+          batch_points = self._points[start:end]
+      return self._images[start:end], self._labels[start:end], batch_points
 
 
 

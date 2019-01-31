@@ -129,6 +129,7 @@ def do_evaluation(sess,
         input_data.read_data_sets().
     """
     import transformations
+    import eval_utils
     rows_reshape = 3
     columns_reshape = 4
     components_vector_size = 6
