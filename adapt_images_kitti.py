@@ -7,7 +7,7 @@ from transform import build_intrinsic_matrix
 import matplotlib.pyplot as plt
 from array_utils import list_to_array, save_txt, save_npy
 from triangulate import triangulatePoints, matcher
-
+from outliers import mask_outliers
 # from transformations import euler_from_matrix, translation_from_matrix
 
 
@@ -123,7 +123,7 @@ def main():
     images_list = []
     crop = args.crop
     scale = args.scale
-    N = 200
+    N = 150
     cloud_points = np.empty((len(left_image_filenames), 3, N))
 
     for (i, (left_img_name, right_img_name)) in enumerate(zip(left_image_filenames, right_image_filenames)):
@@ -131,20 +131,8 @@ def main():
         right_img = non_demosaic_load(os.path.join(right_image_dir, right_img_name))
         assert left_img_name == right_img_name
 
-        # Triangulate points
-        pts_l, pts_r = matcher(left_img, right_img)
-
-        P1 = left_calibration_matrix
-        P2 = right_calibration_matrix
-        # X's points are in camera coordinates
-        X = triangulatePoints(P1, P2, pts_l, pts_r)
-
-        # Randomly select N points
-        replace = X.shape[1] <= N
-        if replace:
-            print(X.shape[1])
-        random_selection = np.random.choice(X.shape[1], N, replace=replace)
-        X = X[:3, random_selection]
+        # X.shape -> 3xN
+        X = triangulate(left_img, right_img, left_calibration_matrix, right_calibration_matrix, N)
         cloud_points[i] = X
 
         original_resolution = adapt_images.get_resolution(left_img)
@@ -165,8 +153,6 @@ def main():
     offset = args.offset
     reverse = args.reverse
 
-    # calib = np.genfromtxt(calibration_file, delimiter=' ')
-    # left_calibration_matrix = get_calibration_matrix(calib, args.cam)
     print(left_calibration_matrix.reshape(-1))
     # new_focal_length, new_principal_point = get_intrinsics_parameters(
     #    [left_calibration_matrix[0, 0], left_calibration_matrix[1, 1]], [left_calibration_matrix[0, 2], left_calibration_matrix[1, 2]],
@@ -209,6 +195,35 @@ def main():
     # print(translation_from_matrix(transf_src_dst))
     save_txt(os.path.join(output_dir, 'transformations'), ts, fmt='%.18e')
 
+# Triangulate points
+# Input:
+#       left_img: image
+#       right_img: image
+#       P1: projection matrix 3x4 (left)
+#       P2: projection matrix 3x4 (right)
+#       N: select N points
+# Output:
+#       X: array of 3D points (3xN)
+def triangulate(left_img, right_img, P1, P2, N):
+    pts_l, pts_r = matcher(left_img, right_img)
+
+    # X's points are in camera coordinates
+    X = triangulatePoints(P1, P2, pts_l, pts_r)
+    dim = X.shape[0]
+    # X.shape -> (4xN)
+    for i in range(3):
+        # Each axis (X,Y,Z) is filtered by mask_outliers
+        mask = mask_outliers(X[i], 1000)
+        X = X[:, mask]
+        X = X.reshape((dim, -1))
+
+    # Randomly select N points
+    replace = X.shape[1] <= N
+    if replace:
+        print(X.shape[1])
+    random_selection = np.random.choice(X.shape[1], N, replace=replace)
+    X = X[:3, random_selection]
+    return X
 
 
 if __name__ == "__main__":
