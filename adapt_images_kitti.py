@@ -123,7 +123,7 @@ def main():
     images_list = []
     crop = args.crop
     scale = args.scale
-    N = 150
+    N = 25
     cloud_points = np.empty((len(left_image_filenames), 3, N))
 
     for (i, (left_img_name, right_img_name)) in enumerate(zip(left_image_filenames, right_image_filenames)):
@@ -195,6 +195,30 @@ def main():
     # print(translation_from_matrix(transf_src_dst))
     save_txt(os.path.join(output_dir, 'transformations'), ts, fmt='%.18e')
 
+# Mask points near the center of the image
+# Input:
+#       x1 -> 3xN array of 2D coordinates (image plane coordinates)
+# Output:
+#       center_crop_mask -> 1D array of N bool values (shape = (N,))
+# FIXME it should depend on global crop args instead of calculate min and max
+def center_crop_mask(x1, tol=[150., 120.]):
+    center_crop_mask = np.ones(x1.shape[1], dtype=bool)
+    for i in range(2):
+        min = x1[i].min()
+        max = x1[i].max()
+        rang = (max - min) / 2
+        med_value = min + rang
+        mask = np.abs(x1[i] - med_value) < tol[i]
+        mask = np.squeeze(np.array(mask))
+        center_crop_mask &= mask
+
+    return center_crop_mask
+
+
+def in_front_of_cam_mask(X, focal_length):
+    mask = X[2] > focal_length
+    return mask
+
 # Triangulate points
 # Input:
 #       left_img: image
@@ -207,7 +231,7 @@ def main():
 def triangulate(left_img, right_img, P1, P2, N):
     pts_l, pts_r = matcher(left_img, right_img)
 
-    # X's points are in camera coordinates
+    # X's points are in camera coordinates when P1 = left_calibration_matrix, i.e. the intrinsic parameters
     X = triangulatePoints(P1, P2, pts_l, pts_r)
     dim = X.shape[0]
     # X.shape -> (4xN)
@@ -216,6 +240,19 @@ def triangulate(left_img, right_img, P1, P2, N):
         mask = mask_outliers(X[i], 1000)
         X = X[:, mask]
         X = X.reshape((dim, -1))
+
+    x1 = np.matmul(P1, X)
+    x1 /= x1[2]
+
+    # Mask points near the center
+    c_mask = center_crop_mask(x1)
+    X = X[:, c_mask]
+
+    # Mask points that are in front of the camera
+    # FIXME we need the real focal length in camera coordinate units (not pixel!)
+    # But for now, we just chech that Z is positive
+    front_mask = in_front_of_cam_mask(X, 0.)
+    X = X[:, front_mask]
 
     # Randomly select N points
     replace = X.shape[1] <= N
