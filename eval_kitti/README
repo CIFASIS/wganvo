@@ -1,0 +1,12 @@
+Para correr:
+En el dir raiz tener la siguiente estructura:
+data/odometry/poses/ -> aqui va el "ground truth" de 11-21, obtenido por ej. con SPTAM, o con algún método a comparar. Los archivos se nombrar como xx.txt, donde xx es el numero de secuencia (11-21)
+results/poses/data/ -> aqui va nuestra estimacion. Los archivos se nombran de la misma forma.
+
+Compilar con:
+g++ -O3 -DNDEBUG -o evaluate_odometry evaluate_odometry.cpp matrix.cpp
+
+Correr con:
+./evaluate_odometry poses
+
+(poses es el nombre de la subcarpeta de results)
