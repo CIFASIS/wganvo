@@ -207,10 +207,11 @@ def do_evaluation(sess,
     print(current_target)
     mean_squared_errors = squared_errors / num_examples
     rmse_x = np.sqrt(np.sum(squared_errors[0:3]) / num_examples)
+    rmse_ang = np.sqrt(np.sum(squared_errors[3:6]) / num_examples)
     mean_geod_dist_q = accum_geod_distance / num_examples
     target_variance = np.var(target_matrix, axis=0)  # variance = std ** 2
     norm_mse = mean_squared_errors / target_variance
-    return rmse_x, mean_geod_dist_q, mean_squared_errors, norm_mse
+    return rmse_x, rmse_ang, mean_geod_dist_q, mean_squared_errors, norm_mse
 
 
 # def frames_vs_abs_distance(relative_poses_prediction, relative_poses_target):
@@ -287,7 +288,8 @@ def run_training():
     # Get the sets of images and labels for training, validation, and
     # test on MNIST.
     kfold = 5
-    train_images, train_targets, splits, train_groups, train_points = input_data.read_data_sets(FLAGS.train_data_dir, kfold)
+    train_images, train_targets, splits, train_groups, train_points = input_data.read_data_sets(FLAGS.train_data_dir,
+                                                                                                kfold)
     test_images, test_targets, _, test_groups, _ = input_data.read_data_sets(FLAGS.test_data_dir)
 
     # intrinsic_matrix = np.matrix(load(FLAGS.intrinsics_dir))
@@ -407,7 +409,7 @@ def run_training():
                     # Evaluate against the training set.
 
                     # print('Training Data Eval:')
-                    # train_rmse_x, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
+                    # train_rmse_x, train_rmse_ang, train_dist_q, train_mse, train_norm_mse = do_evaluation(sess,
                     #                                                                      outputs,
                     #                                                                      images_placeholder,
                     #                                                                      labels_placeholder,
@@ -415,34 +417,37 @@ def run_training():
                     #                                                                      FLAGS.batch_size,
                     #                                                                      standardize_targets)
                     # add_scalar_to_tensorboard(train_rmse_x, "tr_rmse_x", summary_writer, step)
+                    # add_scalar_to_tensorboard(train_rmse_ang, "tr_rmse_ang", summary_writer, step)
                     # add_scalar_to_tensorboard(train_dist_q, "tr_gdist_q", summary_writer, step)
                     # add_array_to_tensorboard(train_mse, "tr_mse_", summary_writer, step)
                     # add_array_to_tensorboard(train_norm_mse, "tr_norm_mse_", summary_writer, step)
                     # Evaluate against the validation set.
                     print('Validation Data Eval:')
-                    validation_rmse_x, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(sess,
-                                                                                                              outputs,
-                                                                                                              images_placeholder,
-                                                                                                              labels_placeholder,
-                                                                                                              input_data.DataSet(
-                                                                                                                  train_images[
-                                                                                                                      validation_indexs],
-                                                                                                                  train_targets[
-                                                                                                                      validation_indexs],
-                                                                                                                  train_groups[
-                                                                                                                      validation_indexs],
-                                                                                                                  fake_data=FLAGS.fake_data),
-                                                                                                              FLAGS.batch_size,
-                                                                                                              # intrinsic_matrix,
-                                                                                                              standardize_targets,
-                                                                                                              train_mode)
-                    add_scalar_to_tensorboard(validation_rmse_x, "v_rmse", summary_writer, step)
+                    validation_rmse_x, validation_rmse_ang, validation_dist_q, validation_mse, validation_norm_mse = do_evaluation(
+                        sess,
+                        outputs,
+                        images_placeholder,
+                        labels_placeholder,
+                        input_data.DataSet(
+                            train_images[
+                                validation_indexs],
+                            train_targets[
+                                validation_indexs],
+                            train_groups[
+                                validation_indexs],
+                            fake_data=FLAGS.fake_data),
+                        FLAGS.batch_size,
+                        # intrinsic_matrix,
+                        standardize_targets,
+                        train_mode)
+                    add_scalar_to_tensorboard(validation_rmse_x, "v_rmse_x", summary_writer, step)
+                    add_scalar_to_tensorboard(validation_rmse_ang, "v_rmse_ang", summary_writer, step)
                     add_scalar_to_tensorboard(validation_dist_q, "v_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(validation_mse, "v_mse_", summary_writer, step)
                     add_array_to_tensorboard(validation_norm_mse, "v_norm_mse_", summary_writer, step)
                     # Evaluate against the test set.
                     print('Test Data Eval:')
-                    test_rmse_x, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
+                    test_rmse_x, test_rmse_ang, test_dist_q, test_mse, test_norm_mse = do_evaluation(sess,
                                                                                       outputs,
                                                                                       images_placeholder,
                                                                                       labels_placeholder,
@@ -452,6 +457,7 @@ def run_training():
                                                                                       standardize_targets,
                                                                                       train_mode)
                     add_scalar_to_tensorboard(test_rmse_x, "te_rmse_x", summary_writer, step)
+                    add_scalar_to_tensorboard(test_rmse_ang, "te_rmse_ang", summary_writer, step)
                     add_scalar_to_tensorboard(test_dist_q, "te_gdist_q", summary_writer, step)
                     add_array_to_tensorboard(test_mse, "te_mse_", summary_writer, step)
                     add_array_to_tensorboard(test_norm_mse, "te_norm_mse_", summary_writer, step)
