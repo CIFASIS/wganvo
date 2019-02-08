@@ -707,6 +707,7 @@ def run(args):
         standardize_targets = False
         current_fold = 0
         require_improvement = 12000
+        run_gan_ops = not args.disable_gan
         # Train loop
         for train_indexs, validation_indexs in splits:
 
@@ -733,7 +734,7 @@ def run(args):
                 start_time = time.time()
 
                 # Train generator
-                if iteration > 0:
+                if iteration > 0 and run_gan_ops:
                     _ = session.run(gen_train_op)
 
                 # Train critic and VO
@@ -753,13 +754,19 @@ def run(args):
                     feed_dict[train_mode] = True
                     feed_dict[global_iter] = lib.plot.get_global_iter()
                     # _data = gen.next()
-                    _disc_cost, _disc_vo_cost, _, _ = session.run(
-                        [disc_cost, disc_vo_cost, disc_train_op, disc_vo_train_op], feed_dict=feed_dict)
+
+                    run_tensors = [disc_vo_cost, disc_vo_train_op]
+                    if run_gan_ops:
+                        run_tensors.append(disc_cost)
+                        run_tensors.append(disc_train_op)
+                    run_results = session.run(run_tensors, feed_dict=feed_dict)
+                    _disc_vo_cost = run_results[0]
+                    #_disc_cost = run_results[0]
 
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
 
-                lib.plot.plot('train disc cost', _disc_cost)
+                # lib.plot.plot('train disc cost', _disc_cost)
                 lib.plot.plot('train vo cost', _disc_vo_cost)
                 lib.plot.plot('time', time.time() - start_time)
 
@@ -792,8 +799,9 @@ def run(args):
                     #    dev_disc_costs.append(_dev_disc_cost)
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    generate_image(curr_fold_log_dir, iteration)
-                    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
+                    if run_gan_ops:
+                        generate_image(curr_fold_log_dir, iteration)
+                        save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse_x, train_rmse_ang, train_dist_q, train_mse, train_norm_mse = do_evaluation(session,
@@ -930,6 +938,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--early_stopping',
+        action='store_true',
+        help='Directory to put the log data.'
+    )
+    parser.add_argument(
+        '--disable_gan',
         action='store_true',
         help='Directory to put the log data.'
     )
