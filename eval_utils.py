@@ -1,6 +1,7 @@
 import sys, os, inspect
 
 import numpy as np
+import tensorflow as tf
 import transformations
 import random
 import matplotlib
@@ -211,3 +212,12 @@ def our_metric_evaluation(relative_prediction, relative_target, test_dataset, cu
     abs_distance = np.array(abs_distance)
     te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames + 1)))
     return te_eval
+
+
+def load_model(sess, model_name):
+    saver = tf.train.import_meta_graph(model_name+'.meta')
+    # print(model_name)
+    # inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
+    saver.restore(sess, model_name)  # tf.train.latest_checkpoint('./'))
+    graph = tf.get_default_graph()
+    return graph
