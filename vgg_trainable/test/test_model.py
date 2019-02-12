@@ -27,7 +27,7 @@ def test_model(model_name, data_dir, output_dir):
     targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
     train_mode = graph.get_tensor_by_name("train_mode:0")  # FIXME Podria arrojar exception
-    images, targets, _, groups = read_data_sets(data_dir)
+    images, targets, _, groups, _ = read_data_sets(data_dir)
     dataset = DataSet(images, targets, groups, fake_data=False)
     relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size,
                                                                             images_placeholder,

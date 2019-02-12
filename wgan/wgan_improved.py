@@ -738,7 +738,7 @@ def run(args):
                     _ = session.run(gen_train_op)
 
                 # Train critic and VO
-                if (MODE == 'dcgan') or (MODE == 'lsgan'):
+                if (not run_gan_ops) or (MODE == 'dcgan') or (MODE == 'lsgan'):
                     disc_iters = 1
                 else:
                     disc_iters = CRITIC_ITERS
