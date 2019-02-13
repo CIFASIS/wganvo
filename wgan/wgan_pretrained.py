@@ -553,7 +553,7 @@ def run(args):
                                               var_list=lib.params_with_name('Generator'), colocate_gradients_with_ops=True)
             disc_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_cost,
                                                var_list=lib.params_with_name('Discriminator.'), colocate_gradients_with_ops=True)
-            pars = tf.constant(lib.params_with_name('ConvPart'), name="CP_params")
+            #pars = tf.constant(lib.params_with_name('ConvPart'), name="CP_params")
             print(lib.params_with_name('ConvPart'))
 
         elif MODE == 'dcgan':
@@ -644,7 +644,7 @@ def run(args):
 
 
             if (iteration < 5) or (iteration % 200 == 199):
-                lib.plot.flush()
+                lib.plot.flush(args.log_dir)
 
             lib.plot.tick()
 def main(_):
