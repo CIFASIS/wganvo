@@ -472,17 +472,17 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
     output = lib.ops.conv2d.Conv2D('Discriminator.1', IMAGE_CHANNELS, dim, 5, output, stride=2)
     output = nonlinearity(output)
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.2', dim, 2 * dim, 5, output, stride=2)
+    output = lib.ops.conv2d.Conv2D('Discriminator.2.ConvPart', dim, 2 * dim, 5, output, stride=2)
     if bn:
         output = Normalize('Discriminator.BN2', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.3', 2 * dim, 4 * dim, 5, output, stride=2)
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.ConvPart', 2 * dim, 4 * dim, 5, output, stride=2)
     if bn:
         output = Normalize('Discriminator.BN3', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.4', 4 * dim, 8 * dim, 5, output, stride=2)
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.ConvPart', 4 * dim, 8 * dim, 5, output, stride=2)
     if bn:
         output = Normalize('Discriminator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
@@ -515,6 +515,13 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
 def vo_cost_function(outputs, targets):
     return tf.reduce_mean(tf.abs(tf.subtract(outputs, targets)))
 
+def load_model(sess, model_name, var_list):
+    saver = tf.train.Saver(var_list)#import_meta_graph(model_name+'.meta')
+    # print(model_name)
+    # inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
+    saver.restore(sess, model_name)  # tf.train.latest_checkpoint('./'))
+    # graph = tf.get_default_graph()
+    # return graph
 
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
@@ -727,7 +734,10 @@ def run(args):
             last_improvement = 0
             our_metric_last_improvement = 0
             session.run(init)
-
+            if args.load_model:
+                pp = lib.params_with_name('ConvPart')
+                print(pp)
+                load_model(session, args.load_model, pp)
             # gen = inf_train_gen()
             for iteration in xrange(args.max_steps):
 
