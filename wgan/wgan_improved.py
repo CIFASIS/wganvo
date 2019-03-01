@@ -48,13 +48,17 @@ OUTPUT_DIM = None  # 64 * 64 * 3  # Number of pixels in each iamge
 lib.print_model_settings(locals().copy())
 
 
-def GeneratorAndDiscriminator():
+def GeneratorAndDiscriminator(type):
     """
     Choose which generator and discriminator architecture to use by
     uncommenting one of these lines.
     """
-
-    return DCGANGenerator, DCGANDiscriminator
+    if type == "Good":
+        print("Using good Generator and good Discriminator")
+        return GoodGenerator, GoodDiscriminator
+    elif type == "DCGAN":
+        print("Using DCGANGenerator and DCGANDiscriminator")
+        return DCGANGenerator, DCGANDiscriminator
 
     # For actually generating decent samples, use this one
     # return GoodGenerator, GoodDiscriminator
@@ -228,11 +232,13 @@ def ResidualBlock(name, input_dim, output_dim, filter_size, inputs, resample=Non
 # ! Generators
 
 def GoodGenerator(n_samples, noise=None, dim=DIM, nonlinearity=tf.nn.relu):
+    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64
+    height = IMAGE_HEIGHT / 16
     if noise is None:
         noise = tf.random_normal([n_samples, 128])
 
-    output = lib.ops.linear.Linear('Generator.Input', 128, 4 * 4 * 8 * dim, noise)
-    output = tf.reshape(output, [-1, 8 * dim, 4, 4])
+    output = lib.ops.linear.Linear('Generator.Input', 128, width * height * 8 * dim, noise)
+    output = tf.reshape(output, [-1, 8 * dim, height, width])
 
     output = ResidualBlock('Generator.Res1', 8 * dim, 8 * dim, 3, output, resample='up')
     output = ResidualBlock('Generator.Res2', 8 * dim, 4 * dim, 3, output, resample='up')
@@ -241,10 +247,10 @@ def GoodGenerator(n_samples, noise=None, dim=DIM, nonlinearity=tf.nn.relu):
 
     output = Normalize('Generator.OutputN', [0, 2, 3], output)
     output = tf.nn.relu(output)
-    output = lib.ops.conv2d.Conv2D('Generator.Output', 1 * dim, 3, 3, output)
+    output = lib.ops.conv2d.Conv2D('Generator.Output', 1 * dim, IMAGE_CHANNELS, 3, output)
     output = tf.tanh(output)
 
-    return tf.reshape(output, [-1, OUTPUT_DIM])
+    return tf.reshape(output, [-1, IMAGE_CHANNELS * IMAGE_WIDTH * IMAGE_HEIGHT])
 
 
 def FCGenerator(n_samples, noise=None, FC_DIM=512):
@@ -386,19 +392,37 @@ def MultiplicativeDCGANGenerator(n_samples, noise=None, dim=DIM, bn=True):
 
 # ! Discriminators
 
-def GoodDiscriminator(inputs, dim=DIM):
-    output = tf.reshape(inputs, [-1, 3, 64, 64])
-    output = lib.ops.conv2d.Conv2D('Discriminator.Input', 3, dim, 3, output, he_init=False)
+def GoodDiscriminator(inputs, train_mode, dim=DIM):
+    output = tf.reshape(inputs, [-1, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH])
+    # output = tf.reshape(inputs, [-1, 3, 64, 64])
+    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
+    height = IMAGE_HEIGHT / 16
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.Input', IMAGE_CHANNELS, dim, 3, output, he_init=False)
 
     output = ResidualBlock('Discriminator.Res1', dim, 2 * dim, 3, output, resample='down')
     output = ResidualBlock('Discriminator.Res2', 2 * dim, 4 * dim, 3, output, resample='down')
     output = ResidualBlock('Discriminator.Res3', 4 * dim, 8 * dim, 3, output, resample='down')
     output = ResidualBlock('Discriminator.Res4', 8 * dim, 8 * dim, 3, output, resample='down')
 
-    output = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
-    output = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output)
+    output = tf.reshape(output, [-1, height * width * 8 * dim])
+    output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
 
-    return tf.reshape(output, [-1])
+    dropout = 0.5
+    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 4096, output)
+    relu1 = tf.nn.relu(fc1)
+    drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
+
+    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 4096, 4096, drop1)
+    relu2 = tf.nn.relu(fc2)
+    drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
+    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
+
+
+    # output = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
+    # output = lib.ops.linear.Linear('Discriminator.Output', 4 * 4 * 8 * dim, 1, output)
+
+    return tf.reshape(output_disc, [-1]), output_vo #tf.reshape(output, [-1])
 
 
 def MultiplicativeDCGANDiscriminator(inputs, dim=DIM, bn=True):
@@ -525,7 +549,7 @@ def load_model(sess, model_name, var_list):
 
 def run(args):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
-        Generator, Discriminator = GeneratorAndDiscriminator()
+        Generator, Discriminator = GeneratorAndDiscriminator(args.arch)
         # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
         # Las imagenes se cargan como arrays en [0, 1]
         all_real_data_conv = tf.placeholder(tf.float32,
@@ -945,6 +969,13 @@ if __name__ == '__main__':
         default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
                              'tensorflow/jcremona/tesina/logs/'),
         help='Directory to put the log data.'
+    )
+    parser.add_argument(
+        '--arch',
+        type=str,
+        default="DCGAN",
+        choices=["Good", "DCGAN"],
+        help='Choose Generator and Discriminator architecture (DCGAN default).'
     )
     parser.add_argument(
         '--early_stopping',
