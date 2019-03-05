@@ -395,15 +395,15 @@ def MultiplicativeDCGANGenerator(n_samples, noise=None, dim=DIM, bn=True):
 def GoodDiscriminator(inputs, train_mode, dim=DIM):
     output = tf.reshape(inputs, [-1, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH])
     # output = tf.reshape(inputs, [-1, 3, 64, 64])
-    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
-    height = IMAGE_HEIGHT / 16
+    width = IMAGE_WIDTH / 8 # 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
+    height = IMAGE_HEIGHT / 8 # 16
 
     output = lib.ops.conv2d.Conv2D('Discriminator.Input', IMAGE_CHANNELS, dim, 3, output, he_init=False)
 
     output = ResidualBlock('Discriminator.Res1', dim, 2 * dim, 3, output, resample='down')
     output = ResidualBlock('Discriminator.Res2', 2 * dim, 4 * dim, 3, output, resample='down')
     output = ResidualBlock('Discriminator.Res3', 4 * dim, 8 * dim, 3, output, resample='down')
-    output = ResidualBlock('Discriminator.Res4', 8 * dim, 8 * dim, 3, output, resample='down')
+    #output = ResidualBlock('Discriminator.Res4', 8 * dim, 8 * dim, 3, output, resample='down')
 
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
@@ -417,6 +417,11 @@ def GoodDiscriminator(inputs, train_mode, dim=DIM):
     relu2 = tf.nn.relu(fc2)
     drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
     output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
+
+    quaternions = output_vo[:, 3:LABELS_SIZE]
+    quaternions_norm = tf.norm(quaternions, axis=1)
+    unit_quaternions = quaternions / tf.reshape(quaternions_norm, (-1, 1))
+    output_vo = tf.concat([output_vo[:, :3], unit_quaternions], 1)
 
 
     # output = tf.reshape(output, [-1, 4 * 4 * 8 * dim])
@@ -969,6 +974,11 @@ if __name__ == '__main__':
         default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
                              'tensorflow/jcremona/tesina/logs/'),
         help='Directory to put the log data.'
+    )
+    parser.add_argument(
+        '--load_model',
+        type=str,
+        help='Path to a pretrained model'
     )
     parser.add_argument(
         '--arch',
