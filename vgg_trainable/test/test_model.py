@@ -28,13 +28,13 @@ def test_model(model_name, data_dir, output_dir, batch_size):
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
     train_mode = graph.get_tensor_by_name("train_mode:0")  # FIXME Podria arrojar exception
     images, targets, _, groups, _ = read_data_sets(data_dir)
-    dataset = DataSet(images, targets, groups, fake_data=False)
+    dataset = DataSet(images, targets, batch_size, groups=groups, fake_data=False)
     relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size,
                                                                             images_placeholder,
                                                                             outputs,
                                                                             targets_placeholder, train_mode)
     frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset,
-                                                       output_dir, save_txt=True, plot=True)
+                                                       batch_size, output_dir, save_txt=True, plot=True)
     points = np.array(zip(frames, abs_distance))
     np.savetxt(os.path.join(output_dir, "frames_vs_abs_distance.txt"), points)
     np.savetxt(os.path.join(output_dir, "relative_poses_prediction.txt"), relative_poses_prediction.reshape(-1, 12),

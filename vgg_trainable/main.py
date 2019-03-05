@@ -472,7 +472,7 @@ def run_training():
                                                                                            train_mode)
                     save_txt = step == 999 or step == 19999 or step == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
-                                                               curr_fold_log_path, save_txt)
+                                                               FLAGS.batch_size, curr_fold_log_path, save_txt)
                     print(te_eval)
                     add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, step)
                     # add_scalar_to_tensorboard(mean_ape_rmse_tr, "test_mean_ape_rmse_tr", summary_writer, step)

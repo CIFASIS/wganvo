@@ -12,7 +12,7 @@ import trajectory
 
 def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
                          targets_placeholder, train_mode=None):
-    steps_per_epoch = dataset.num_examples // batch_size
+    steps_per_epoch = dataset.num_examples# // batch_size
     num_examples = steps_per_epoch * batch_size
     relative_poses_prediction = np.empty((num_examples, 3, 4))
     relative_poses_target = np.empty((num_examples, 3, 4))
@@ -131,12 +131,12 @@ def fill_feed_dict(data_set, images_pl, labels_pl, points_pl=None, feed_with_bat
     return feed_dict
 
 
-def plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, output_dir, save_txt=False,
+def plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset, batch_size, output_dir, save_txt=False,
                                 plot=False, samples=30):
     groups = dataset.groups
     datasets_idxs = {}
     for i, _ in enumerate(relative_poses_prediction):
-        group = str(groups[i])
+        group = str(groups[i/batch_size][i % batch_size])
         if group in datasets_idxs:
             datasets_idxs[group].append(i)
         else:
@@ -207,10 +207,10 @@ def se3_pose_list(kitti_format):
                       [0, 0, 0, 1]]) for r in kitti_format]
 
 
-def our_metric_evaluation(relative_prediction, relative_target, test_dataset, curr_fold_log_path,
+def our_metric_evaluation(relative_prediction, relative_target, test_dataset, batch_size, curr_fold_log_path,
                           save_txt):
     frames, abs_distance = plot_frames_vs_abs_distance(relative_prediction, relative_target, test_dataset,
-                                                       curr_fold_log_path, save_txt=save_txt)
+                                                       batch_size, curr_fold_log_path, save_txt=save_txt)
     frames = np.array(frames)
     abs_distance = np.array(abs_distance)
     te_eval = np.mean(np.square(np.log(abs_distance) / np.log(frames + 1)))

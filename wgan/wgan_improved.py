@@ -899,14 +899,14 @@ def run(args):
 
                     print("Test Eval:")
                     relative_prediction, relative_target = eval_utils.infer_relative_poses(session, test_dataset,
-                                                                                           FLAGS.batch_size,
+                                                                                           args.batch_size,
                                                                                            all_real_data_conv,
                                                                                            disc_real_vo,
                                                                                            vo_targets,
                                                                                            train_mode)
                     save_txt = iteration == 999 or iteration == 19999 or iteration == 39999
                     te_eval = eval_utils.our_metric_evaluation(relative_prediction, relative_target, test_dataset,
-                                                               curr_fold_log_dir, save_txt)
+                                                               args.batch_size, curr_fold_log_dir, save_txt)
                     print(te_eval)
                     add_scalar_to_tensorboard(te_eval, "mean(square(log(d)/log(f)))", summary_writer, iteration)
 
