@@ -17,8 +17,11 @@ def show(images):
         plt.pause(0.01)
 
 def main():
-    images,_,_,_ = read_data_sets(FLAGS.img_file)
-    show(images[...,1])
+    images,_,_,_,_ = read_data_sets(FLAGS.img_file)
+    d = DataSet(images,images, 100, groups=images)
+    im, lb, p = d.next_batch(199999, shuffle=False)
+    print(im.shape)
+    show(im[...,1])
 
 
 if __name__ == '__main__':

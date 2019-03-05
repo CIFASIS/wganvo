@@ -18,10 +18,23 @@ DEFAULT_MAIN_KEY = 'arr_0'
 P_FILENAME = "t.npz"
 DEFAULT_LABEL_KEY = "T"
 IMAGE_POINTS = 25
+
+def reshape_sequence(arr,batch_size):
+    if arr is None:
+        return None
+    num_examples = arr.shape[0] / batch_size
+    dims = [num_examples, batch_size]
+    for i in range(1,arr.ndim):
+        dims.append(arr.shape[i])
+    n = num_examples * batch_size
+    arr = arr[:n].reshape(dims)
+    return arr
+
 class DataSet(object):
   def __init__(self,
                images,
                labels,
+               batch_size,
                groups=None,
                points=None,
                fake_data=False,
@@ -46,8 +59,8 @@ class DataSet(object):
     else:
       assert images.shape[0] == labels.shape[0], (
           'images.shape: %s labels.shape: %s' % (images.shape, labels.shape))
-      self._num_examples = images.shape[0]
-      print images.shape
+
+
       # Convert shape from [num examples, rows, columns, depth]
       # to [num examples, rows*columns] (assuming depth == 1)
       if reshape:
@@ -58,14 +71,19 @@ class DataSet(object):
         # Convert from [0, 255] -> [0.0, 1.0].
 #        images = images.astype(numpy.float32, copy=False)
 #        images = numpy.multiply(images, 1.0 / 255.0)
-    self._images = images
-    self._labels = labels
-    self._groups = groups
-    self._points = points
+    self._targets_mean = numpy.mean(labels, axis=0)
+    self._targets_std = numpy.std(labels, axis=0)
+
+    self._images = reshape_sequence(images,batch_size)
+    self._labels = reshape_sequence(labels, batch_size)
+    self._groups = reshape_sequence(groups, batch_size)
+    self._points = reshape_sequence(points, batch_size)
+
+    self._num_examples = self._images.shape[0]
     self._epochs_completed = 0
     self._index_in_epoch = 0
-    self._targets_mean = numpy.mean(labels, axis=0)
-    self._targets_std = numpy.std(labels, axis=0) 
+
+    print self._images.shape
 
 
   @property
@@ -108,7 +126,10 @@ class DataSet(object):
     self._index_in_epoch = 0
 
   def next_batch(self, batch_size, fake_data=False, shuffle=True, standardize_targets=False):
-    im, lb, pts = self._next_batch(batch_size, fake_data, shuffle)
+    im, lb, pts = self._next_batch(1, fake_data, shuffle)
+    im = numpy.squeeze(im, axis=0)
+    lb = numpy.squeeze(lb, axis=0)
+    pts = numpy.squeeze(pts, axis=0)
     if standardize_targets:
         lb = (lb - self._targets_mean) / self._targets_std
     return im * (1.0 / 255.0), lb, pts

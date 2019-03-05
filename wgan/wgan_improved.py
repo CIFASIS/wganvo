@@ -736,7 +736,7 @@ def run(args):
         # else:
         #     test_intrinsic_matrix = intrinsic_matrix
 
-        test_dataset = DataSet(test_images, test_targets, groups=test_groups)
+        test_dataset = DataSet(test_images, test_targets, args.batch_size, groups=test_groups)
         summary = tf.summary.merge_all()
         # Add the variable initializer Op.
         init = tf.global_variables_initializer()
@@ -750,7 +750,7 @@ def run(args):
             print("**************** NEW FOLD *******************")
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
-            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], points=train_points)
+            train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], args.batch_size, points=train_points)
             saver = tf.train.Saver(max_to_keep=1)
             our_metric_saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
@@ -868,7 +868,7 @@ def run(args):
                             train_images[
                                 validation_indexs],
                             train_targets[
-                                validation_indexs]),
+                                validation_indexs], args.batch_size),
                         args.batch_size,
                         # intrinsic_matrix,
                         standardize_targets,

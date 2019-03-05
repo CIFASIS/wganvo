@@ -15,14 +15,14 @@ from eval_utils import infer_relative_poses, get_absolute_poses, plot_frames_vs_
 DEFAULT_INTRINSIC_FILE_NAME = "intrinsic_matrix.txt"
 
 
-def test_model(model_name, data_dir, output_dir):
+def test_model(model_name, data_dir, output_dir, batch_size):
     sess = tf.Session()
     saver = tf.train.import_meta_graph(model_name + ".meta")
     # print(model_name)
     # inverse_intrinsic_matrix = np.linalg.inv(intrinsic_matrix)
     saver.restore(sess, model_name)  # tf.train.latest_checkpoint('./'))
     graph = tf.get_default_graph()
-    batch_size = 100
+    #batch_size = 100
     outputs = graph.get_tensor_by_name("outputs:0")
     targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
@@ -51,7 +51,7 @@ def test_model(model_name, data_dir, output_dir):
 
 def main(_):
     # intrinsic_matrix = np.matrix(np.loadtxt(FLAGS.intrinsics_path, delimiter=' '))
-    test_model(FLAGS.model_name, FLAGS.data_dir, FLAGS.output_dir)
+    test_model(FLAGS.model_name, FLAGS.data_dir, FLAGS.output_dir, FLAGS.batch_size)
 
 
 if __name__ == '__main__':
@@ -65,6 +65,12 @@ if __name__ == '__main__':
         'data_dir',
         type=str,
         help='Directory to put the data'
+    )
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=100,
+        help='Batch size.  Must divide evenly into the dataset sizes.'
     )
     # parser.add_argument(
     #     '--intrinsics_path',
