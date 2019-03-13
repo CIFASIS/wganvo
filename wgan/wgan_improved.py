@@ -551,28 +551,29 @@ def VGGDiscriminator(inputs, train_mode, dim=DIM, nonlinearity=LeakyReLU):
     height = IMAGE_HEIGHT / 4
     output = lib.ops.conv2d.Conv2D('Discriminator.1', IMAGE_CHANNELS, dim, 3, output)
     output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.2.ConvPart', dim, 2 * dim, 3, output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.2.ConvPart', dim, dim, 3, output)
     output = nonlinearity(output)
-    output = tf.nn.max_pool(output, ksize=[1, 1, 2, 2], strides=[1, 1, 2, 2], padding='SAME')
+    print(output.shape)
+    output = tf.nn.max_pool(output, ksize=[1, 1, 2, 2], strides=[1, 1, 2, 2], padding='SAME', data_format="NCHW")
+    print(output.shape)
+    output = lib.ops.conv2d.Conv2D('Discriminator.3.ConvPart', dim, 2 * dim, 3, output)
+    output = nonlinearity(output)
+    output = lib.ops.conv2d.Conv2D('Discriminator.4.ConvPart', 2 * dim, 2 * dim, 3, output)
+    output = nonlinearity(output)
+    output = tf.nn.max_pool(output, ksize=[1, 1, 2, 2], strides=[1, 1, 2, 2], padding='SAME', data_format="NCHW")
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.3.ConvPart', 2 * dim, 4 * dim, 3, output)
-    output = nonlinearity(output)
-    output = lib.ops.conv2d.Conv2D('Discriminator.4.ConvPart', 4 * dim, 8 * dim, 3, output)
-    output = nonlinearity(output)
-    output = tf.nn.max_pool(output, ksize=[1, 1, 2, 2], strides=[1, 1, 2, 2], padding='SAME')
-
-    output = tf.reshape(output, [-1, height * width * 8 * dim])
-    output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
+    output = tf.reshape(output, [-1, height * width * 2 * dim])
+    output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 2 * dim, 1, output)
 
     dropout = 0.5
-    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 4096, output)
+    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 2 * dim, 1024, output)
     relu1 = tf.nn.relu(fc1)
     drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
 
-    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 4096, 4096, drop1)
+    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 1024, 1024, drop1)
     relu2 = tf.nn.relu(fc2)
     drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
-    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
+    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 1024, LABELS_SIZE, drop2)
 
     quaternions = output_vo[:, 3:LABELS_SIZE]
     quaternions_norm = tf.norm(quaternions, axis=1)
@@ -1028,7 +1029,7 @@ if __name__ == '__main__':
         '--arch',
         type=str,
         default="DCGAN",
-        choices=["Good", "DCGAN"],
+        choices=["Good", "DCGAN","VGG"],
         help='Choose Generator and Discriminator architecture (DCGAN default).'
     )
     parser.add_argument(
