@@ -602,10 +602,13 @@ def run(args):
         Generator, Discriminator = GeneratorAndDiscriminator(args.arch)
         # data format = NHWC porque para vgg se hizo asi (usan los mismos metodos para la carga de datos)
         # Las imagenes se cargan como arrays en [0, 1]
+        load_points = False
         all_real_data_conv = tf.placeholder(tf.float32,
                                             shape=[args.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS],
                                             name="images_placeholder")
-        points = tf.placeholder(tf.float32,
+        points = None
+        if load_points:
+            points = tf.placeholder(tf.float32,
                                 shape=[args.batch_size, 3, IMAGE_POINTS],
                                 name="train_points_placeholder")
         vo_targets = tf.placeholder(tf.float32, shape=[args.batch_size, LABELS_SIZE], name="targets_placeholder")
@@ -637,11 +640,11 @@ def run(args):
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
             print(args.repr_loss_since)
-            disc_vo_cost = tf.cond(global_iter < args.repr_loss_since,
-                                   true_fn=lambda: kendall_loss_naive(disc_real_vo, vo_targets),
-                                   false_fn=lambda: kendall_reprojection_loss(disc_real_vo,
-                                                                              vo_targets,
-                                                                              points))  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
+            disc_vo_cost = kendall_loss_naive(disc_real_vo, vo_targets)# tf.cond(global_iter < args.repr_loss_since,
+                                  # true_fn=lambda: kendall_loss_naive(disc_real_vo, vo_targets),
+                                  # false_fn=lambda: kendall_reprojection_loss(disc_real_vo,
+                                  #                                            vo_targets,
+                                  #                                            points))  # kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             alpha = tf.random_uniform(
                 shape=[args.batch_size, 1],
                 minval=0.,
@@ -773,7 +776,7 @@ def run(args):
 
         kfold = 5
         train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,
-                                                                              load_points=True)
+                                                                              load_points=load_points)
         test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
         # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         # if args.test_intrinsics_file:
@@ -839,16 +842,53 @@ def run(args):
                     feed_dict[global_iter] = lib.plot.get_global_iter()
                     # _data = gen.next()
 
-                    run_tensors = [disc_vo_cost, disc_vo_train_op]
+                    run_tensors = []
                     if run_gan_ops:
                         run_tensors.append(disc_cost)
                         run_tensors.append(disc_train_op)
                     run_results = session.run(run_tensors, feed_dict=feed_dict)
-                    _disc_vo_cost = run_results[0]
+                    #_disc_vo_cost = run_results[0]
                     #_disc_cost = run_results[0]
 
                     if MODE == 'wgan':
                         _ = session.run([clip_disc_weights])
+
+                if iteration % 100 == 0:
+                    duration = time.time() - start_time
+                    # Print status to stdout.
+                    print('Step %d: (%.3f sec)' % (iteration, duration))
+
+                if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
+                    # t = time.time()
+                    # dev_disc_costs = []
+                    # for (images,) in dev_gen():
+                    #    _dev_disc_cost = session.run(disc_cost, feed_dict={all_real_data_conv: images})
+                    #    dev_disc_costs.append(_dev_disc_cost)
+                    # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
+
+                    if run_gan_ops:
+                        generate_image(curr_fold_log_dir, iteration)
+                        save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
+
+
+            for iteration in xrange(int(args.max_steps*4)):
+                feed_dict = eval_utils.fill_feed_dict(train_dataset,
+                                                    all_real_data_conv,
+                                                    vo_targets,
+                                                    points_pl=points,
+                                                    feed_with_batch=True,
+                                                    batch_size=args.batch_size,
+                                                    standardize_targets=standardize_targets)
+                feed_dict[train_mode] = True
+                feed_dict[global_iter] = iteration #lib.plot.get_global_iter()
+                # _data = gen.next()
+
+                run_tensors = [disc_vo_cost, disc_vo_train_op]
+                #if run_gan_ops:
+                #    run_tensors.append(disc_cost)
+                #    run_tensors.append(disc_train_op)
+                run_results = session.run(run_tensors, feed_dict=feed_dict)
+                _disc_vo_cost = run_results[0]
 
                 # lib.plot.plot('train disc cost', _disc_cost)
                 lib.plot.plot('train vo cost', _disc_vo_cost)
@@ -883,9 +923,9 @@ def run(args):
                     #    dev_disc_costs.append(_dev_disc_cost)
                     # lib.plot.plot('dev disc cost', np.mean(dev_disc_costs))
 
-                    if run_gan_ops:
-                        generate_image(curr_fold_log_dir, iteration)
-                        save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
+                    #if run_gan_ops:
+                    #    generate_image(curr_fold_log_dir, iteration)
+                    #    save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
                     # Evaluate against the training set.
                     print('Training Data Eval:')
                     train_rmse_x, train_rmse_ang, train_dist_q, train_mse, train_norm_mse = do_evaluation(session,
