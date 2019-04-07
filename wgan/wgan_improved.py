@@ -498,8 +498,8 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
-    width = IMAGE_WIDTH / 16  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
-    height = IMAGE_HEIGHT / 16
+    width = 2#IMAGE_WIDTH / 32  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
+    height = 2#IMAGE_HEIGHT / 32
     output = lib.ops.conv2d.Conv2D('Discriminator.1', IMAGE_CHANNELS, dim, 5, output, stride=2)
     output = nonlinearity(output)
 
@@ -518,18 +518,29 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
         output = Normalize('Discriminator.BN4', [0, 2, 3], output)
     output = nonlinearity(output)
 
+    output = lib.ops.conv2d.Conv2D('Discriminator.5.ConvPart', 8 * dim, 8 * dim, 5, output, stride=2)
+    if bn:
+        output = Normalize('Discriminator.BN5', [0, 2, 3], output)
+    output = nonlinearity(output)
+
+    output = lib.ops.conv2d.Conv2D('Discriminator.6.ConvPart', 8 * dim, 8 * dim, 5, output, stride=2)
+    if bn:
+        output = Normalize('Discriminator.BN6', [0, 2, 3], output)
+    output = nonlinearity(output)
+
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
-
+    print("6th Conv Layer")
+    # This first FC Layer has many parameters. We have to keep it as small as possible.
     dropout = 0.5
-    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 4096, output)
+    fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 512, output)
     relu1 = tf.nn.relu(fc1)
     drop1 = tf.cond(train_mode, lambda: tf.nn.dropout(relu1, dropout), lambda: relu1)
 
-    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 4096, 4096, drop1)
+    fc2 = lib.ops.linear.Linear('Discriminator.VO.2', 512, 512, drop1)
     relu2 = tf.nn.relu(fc2)
     drop2 = tf.cond(train_mode, lambda: tf.nn.dropout(relu2, dropout), lambda: relu2)
-    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 4096, LABELS_SIZE, drop2)
+    output_vo = lib.ops.linear.Linear('Discriminator.VO.3', 512, LABELS_SIZE, drop2)
 
     quaternions = output_vo[:, 3:LABELS_SIZE]
     quaternions_norm = tf.norm(quaternions, axis=1)
@@ -871,7 +882,7 @@ def run(args):
                         save_gt_image(feed_dict[all_real_data_conv], curr_fold_log_dir, iteration)
 
 
-            for iteration in xrange(int(args.max_steps*4)):
+            for iteration in xrange(args.max_vo_steps):
                 feed_dict = eval_utils.fill_feed_dict(train_dataset,
                                                     all_real_data_conv,
                                                     vo_targets,
@@ -915,7 +926,7 @@ def run(args):
                 if (iteration < 5) or (iteration % 200 == 199):
                     lib.plot.flush(curr_fold_log_dir)
                 # Save a checkpoint and evaluate the model periodically.
-                if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_steps:
+                if (iteration + 1) % 1000 == 0 or (iteration + 1) == args.max_vo_steps:
                     # t = time.time()
                     # dev_disc_costs = []
                     # for (images,) in dev_gen():
@@ -1041,6 +1052,13 @@ if __name__ == '__main__':
         default=10000,
         help='Number of steps to run trainer.'
     )
+    parser.add_argument(
+        '--max_vo_steps',
+        type=int,
+        default=40000,
+        help='Number of steps to run trainer.'
+    )
+
     parser.add_argument(
         '--batch_size',
         type=int,
