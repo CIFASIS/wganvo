@@ -25,7 +25,7 @@ import tflib.plot
 from vgg_trainable.input_data import read_data_sets, DataSet, IMAGE_HEIGHT, IMAGE_WIDTH, LABELS_SIZE, IMAGE_CHANNELS, \
     IMAGE_POINTS
 from vgg_trainable.main import fill_feed_dict, add_scalar_to_tensorboard, add_array_to_tensorboard, do_evaluation
-from vgg_trainable.model import kendall_loss_naive, kendall_reprojection_loss
+from vgg_trainable.model import kendall_loss_naive, kendall_reprojection_loss, kendall_loss_uncertainty
 from array_utils import load
 import eval_utils
 
@@ -498,8 +498,8 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
     lib.ops.conv2d.set_weights_stdev(0.02)
     lib.ops.deconv2d.set_weights_stdev(0.02)
     lib.ops.linear.set_weights_stdev(0.02)
-    width = 2#IMAGE_WIDTH / 32  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
-    height = 2#IMAGE_HEIGHT / 32
+    width = IMAGE_WIDTH / 32  # width inicial = 4 en DCGAN original, resulta en una imagen generada con width = 64, ver DCGANGenerator
+    height = IMAGE_HEIGHT / 32
     output = lib.ops.conv2d.Conv2D('Discriminator.1', IMAGE_CHANNELS, dim, 5, output, stride=2)
     output = nonlinearity(output)
 
@@ -523,14 +523,14 @@ def DCGANDiscriminator(inputs, train_mode, dim=DIM, bn=True, nonlinearity=LeakyR
         output = Normalize('Discriminator.BN5', [0, 2, 3], output)
     output = nonlinearity(output)
 
-    output = lib.ops.conv2d.Conv2D('Discriminator.6.ConvPart', 8 * dim, 8 * dim, 5, output, stride=2)
-    if bn:
-        output = Normalize('Discriminator.BN6', [0, 2, 3], output)
-    output = nonlinearity(output)
+    #output = lib.ops.conv2d.Conv2D('Discriminator.6.ConvPart', 8 * dim, 8 * dim, 5, output, stride=2)
+    #if bn:
+    #    output = Normalize('Discriminator.BN6', [0, 2, 3], output)
+    #output = nonlinearity(output)
 
     output = tf.reshape(output, [-1, height * width * 8 * dim])
     output_disc = lib.ops.linear.Linear('Discriminator.Output', height * width * 8 * dim, 1, output)
-    print("6th Conv Layer")
+    print("5th Conv Layer")
     # This first FC Layer has many parameters. We have to keep it as small as possible.
     dropout = 0.5
     fc1 = lib.ops.linear.Linear('Discriminator.VO.1', height * width * 8 * dim, 512, output)
@@ -651,6 +651,9 @@ def run(args):
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
             print(args.repr_loss_since)
+            sx = tf.Variable(0., name="regression_sx")
+            sq = tf.Variable(-3., name="regression_sq")
+            #disc_vo_cost = kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             disc_vo_cost = kendall_loss_naive(disc_real_vo, vo_targets)# tf.cond(global_iter < args.repr_loss_since,
                                   # true_fn=lambda: kendall_loss_naive(disc_real_vo, vo_targets),
                                   # false_fn=lambda: kendall_reprojection_loss(disc_real_vo,
