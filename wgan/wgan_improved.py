@@ -669,8 +669,8 @@ def run(args):
             # sx = lib.param("Discriminator.sx", 0.)
             # sq = lib.param("Discriminator.sq", -3.)
             print(args.repr_loss_since)
-            sx = tf.Variable(0., name="regression_sx")
-            sq = tf.Variable(-3., name="regression_sq")
+            sx = lib.param("Loss.sx", 0.)
+            sq = lib.param("Loss.sq", -3.)
             #disc_vo_cost = kendall_loss_uncertainty(disc_real_vo, vo_targets, sx, sq)
             disc_vo_cost = kendall_loss_naive(disc_real_vo, vo_targets)# tf.cond(global_iter < args.repr_loss_since,
                                   # true_fn=lambda: kendall_loss_naive(disc_real_vo, vo_targets),
@@ -749,7 +749,7 @@ def run(args):
                                                                                                      colocate_gradients_with_ops=True)
             disc_vo_train_op = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0., beta2=0.9).minimize(disc_vo_cost,
                                                                                                         var_list=lib.params_with_name(
-                                                                                                            'Discriminator.'),
+                                                                                                            'Discriminator.') + [sx, sq],
                                                                                                         colocate_gradients_with_ops=True)
 
         elif MODE == 'dcgan':
