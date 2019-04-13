@@ -67,8 +67,10 @@ inline float rotationError(Matrix &pose_error) {
   float a = pose_error.val[0][0];
   float b = pose_error.val[1][1];
   float c = pose_error.val[2][2];
-  float d = 0.5*(a+b+c-1.0);
-  return acos(max(min(d,1.0f),-1.0f));
+  float d = 0.5*(a+b+c-1.0);  // Using the trace (sum of the diagonal elements) of the rotation matrix 
+                              // to find the angle of the rotation
+			      // Tr(R) = 1 + 2 * cos(ang)  ==>  |ang| = acos(0.5*(Tr(R)-1))
+  return acos(max(min(d,1.0f),-1.0f));  // set d between [-1,1]
 }
 
 inline float translationError(Matrix &pose_error) {
@@ -87,7 +89,7 @@ vector<errors> calcSequenceErrors (vector<Matrix> &poses_gt,vector<Matrix> &pose
   int32_t step_size = 10; // every second
   
   // pre-compute distances (from ground truth as reference)
-  vector<float> dist = trajectoryDistances(poses_gt);
+  vector<float> dist = trajectoryDistances(poses_gt); // abs(dist[i] - dist[j]) ==> distance between pose i and j
 
   // for all start positions do
   for (int32_t first_frame=0; first_frame<poses_gt.size(); first_frame+=step_size) {
@@ -114,7 +116,7 @@ vector<errors> calcSequenceErrors (vector<Matrix> &poses_gt,vector<Matrix> &pose
       
       // compute speed
       float num_frames = (float)(last_frame-first_frame+1);
-      float speed = len/(0.1*num_frames);
+      float speed = len/(0.1*num_frames);   // (0.1 * num_frames) because was sampled to 10 fps
       
       // write to file
       err.push_back(errors(first_frame,r_err/len,t_err/len,len,speed));
@@ -359,8 +361,8 @@ void plotErrorPlots (string dir,char* prefix) {
       fprintf(fp,"plot \"%s_%s.txt\" using ",prefix,suffix);
       switch (i) {
         case 0: fprintf(fp,"1:($2*100) title 'Translation Error'"); break;
-        case 1: fprintf(fp,"1:($2*57.3) title 'Rotation Error'"); break;
-        case 2: fprintf(fp,"($1*3.6):($2*100) title 'Translation Error'"); break;
+        case 1: fprintf(fp,"1:($2*57.3) title 'Rotation Error'"); break;      // 1 rad = 57.3 deg      
+        case 2: fprintf(fp,"($1*3.6):($2*100) title 'Translation Error'"); break; // 1 m/s = 3.6 km/h
         case 3: fprintf(fp,"($1*3.6):($2*57.3) title 'Rotation Error'"); break;
       }
       fprintf(fp," lc rgb \"#0000FF\" pt 4 w linespoints\n");
@@ -383,7 +385,7 @@ void plotErrorPlots (string dir,char* prefix) {
   }
 }
 
-void saveStats (vector<errors> err,string dir) {
+void saveStats (vector<errors> err,string dir, char* prefix) {
 
   float t_err = 0;
   float r_err = 0;
@@ -394,8 +396,10 @@ void saveStats (vector<errors> err,string dir) {
     r_err += it->r_err;
   }
 
+  char full_name[1024];
+  sprintf(full_name,"%s/%s_stats.txt",dir.c_str(),prefix);
   // open file  
-  FILE *fp = fopen((dir + "/stats.txt").c_str(),"w");
+  FILE *fp = fopen(full_name,"w");
  
   // save errors
   float num = err.size();
@@ -423,12 +427,12 @@ bool eval (string result_sha,Mail* mail) {
   vector<errors> total_err;
 
   // for all sequences do
-  for (int32_t i=11; i<22; i++) {
+  for (int32_t i=0; i<11; i++) {
    
     // file name
     char file_name[256];
     sprintf(file_name,"%02d.txt",i);
-    
+
     // read ground truth and result poses
     vector<Matrix> poses_gt     = loadPoses(gt_dir + "/" + file_name);
     vector<Matrix> poses_result = loadPoses(result_dir + "/data/" + file_name);
@@ -446,6 +450,9 @@ bool eval (string result_sha,Mail* mail) {
     vector<errors> seq_err = calcSequenceErrors(poses_gt,poses_result);
     saveSequenceErrors(seq_err,error_dir + "/" + file_name);
 
+    char prefix[16];
+    sprintf(prefix,"%02d",i);
+    saveStats(seq_err, error_dir, prefix);
     // add to total errors
     total_err.insert(total_err.end(),seq_err.begin(),seq_err.end());
     
@@ -458,8 +465,7 @@ bool eval (string result_sha,Mail* mail) {
       plotPathPlot(plot_path_dir,roi,i);
 
       // save + plot individual errors
-      char prefix[16];
-      sprintf(prefix,"%02d",i);
+
       saveErrorPlots(seq_err,plot_error_dir,prefix);
       plotErrorPlots(plot_error_dir,prefix);
     }
@@ -471,7 +477,7 @@ bool eval (string result_sha,Mail* mail) {
     sprintf(prefix,"avg");
     saveErrorPlots(total_err,plot_error_dir,prefix);
     plotErrorPlots(plot_error_dir,prefix);
-    saveStats(total_err,result_dir);
+    saveStats(total_err,result_dir, prefix);
   }
 
   // success
