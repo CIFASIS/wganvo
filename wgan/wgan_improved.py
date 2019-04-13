@@ -810,6 +810,8 @@ def run(args):
         train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,
                                                                               load_points=load_points)
         test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
+        train_gan_images, train_gan_targets, _, _, _ = read_data_sets(args.train_gan_dir)
+
         # intrinsic_matrix = np.matrix(load(args.intrinsics_file))
         # if args.test_intrinsics_file:
         #     test_intrinsic_matrix = np.matrix(load(args.test_intrinsics_file))
@@ -831,6 +833,7 @@ def run(args):
             print("Train size: " + str(len(train_indexs)))
             print("Validation size: " + str(len(validation_indexs)))
             train_dataset = DataSet(train_images[train_indexs], train_targets[train_indexs], points=train_points)
+            train_gan_dataset = DataSet(train_gan_images, train_gan_targets)
             saver = tf.train.Saver(max_to_keep=1)
             our_metric_saver = tf.train.Saver(max_to_keep=1)
             current_fold += 1
@@ -863,7 +866,7 @@ def run(args):
                     disc_iters = CRITIC_ITERS
                 feed_dict = None
                 for i in xrange(disc_iters):
-                    feed_dict = eval_utils.fill_feed_dict(train_dataset,
+                    feed_dict = eval_utils.fill_feed_dict(train_gan_dataset,
                                                           all_real_data_conv,
                                                           vo_targets,
                                                           points_pl=points,
@@ -1068,10 +1071,21 @@ if __name__ == '__main__':
         help='Directory to put the test data.'
     )
     parser.add_argument(
+        'train_gan_dir',
+        type=str,
+        help='Directory to put the test data.'
+    )
+    parser.add_argument(
         '--max_steps',
         type=int,
-        default=10000,
-        help='Number of steps to run trainer.'
+        default=1000,
+        help='Number of steps to run GAN trainer.'
+    )
+    parser.add_argument(
+        '--max_vo_steps',
+        type=int,
+        default=40000,
+        help='Number of steps to run VO trainer.'
     )
     parser.add_argument(
         '--max_vo_steps',
