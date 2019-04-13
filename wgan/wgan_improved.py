@@ -1088,13 +1088,6 @@ if __name__ == '__main__':
         help='Number of steps to run VO trainer.'
     )
     parser.add_argument(
-        '--max_vo_steps',
-        type=int,
-        default=40000,
-        help='Number of steps to run trainer.'
-    )
-
-    parser.add_argument(
         '--batch_size',
         type=int,
         default=100,
