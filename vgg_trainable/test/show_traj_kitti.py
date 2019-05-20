@@ -12,7 +12,16 @@ sys.path.insert(0,parentdir)
 from input_data import read_data_sets, DataSet
 from matplotlib import gridspec
 
-def show(images, poses, pred_poses=None, points=None):
+# Example:
+# python show_traj_kitti.py ~/KITTI/ gt_pose_00.txt --poses_pred orb_slam2_pose_00.txt wganvo_pose_00.txt --labels ORB-SLAM2 WGANVO
+# Labels and filenames must be the same length
+
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
+def show(images, poses, pred_poses, labels, points=None):
     fig = plt.figure()
     gs = gridspec.GridSpec(2, 1, height_ratios=[1, 2])
     ax1 = fig.add_subplot(gs[0])
@@ -23,12 +32,12 @@ def show(images, poses, pred_poses=None, points=None):
     x = []
     y = []
     z = []
-    lin = ax2.plot(x, y, z, label='Ground Truth')[0]
+    lin = ax2.plot(x, y, z, label='Ground Truth', linewidth=1.1)[0]
     data_ = [poses]
     lines_ = [lin]
-    if pred_poses != None:
-        lin_pred = ax2.plot(x, y, z, label='Prediction')[0]
-        data_.append(pred_poses)
+    for i, label in zip(pred_poses, labels):
+        lin_pred = ax2.plot(x, y, z, label=label, linewidth=1.1)[0]
+        data_.append(i)
         lines_.append(lin_pred)
 
 
@@ -69,11 +78,14 @@ def show(images, poses, pred_poses=None, points=None):
 def main():
     images,_,_,_, points = read_data_sets(FLAGS.img_file)
     poses = np.loadtxt(FLAGS.poses, delimiter=" ")
-    poses_pred = None
-    if FLAGS.poses_pred != None:
-        poses_pred = np.loadtxt(FLAGS.poses_pred, delimiter=" ")
-        poses_pred = poses_pred.reshape((-1, 3, 4))
-        poses_pred = poses_pred[:, 0:3, 3]
+    assert len(FLAGS.poses_pred) == len(FLAGS.labels), "Num. of pose files and num. of labels must be the same"
+    poses_pred = []
+    for pose_file in FLAGS.poses_pred:
+        pose_pred = np.loadtxt(pose_file, delimiter=" ")
+        pose_pred = pose_pred.reshape((-1, 3, 4))
+        pose_pred = pose_pred[:, 0:3, 3]
+        poses_pred.append(pose_pred)
+
     # points = None
     # if FLAGS.points != None:
     #     points = np.load(FLAGS.points)
@@ -90,7 +102,7 @@ def main():
     # print(poses.shape)
     #print(poses_pred.shape)
     # print(points.shape)
-    show(im, poses, poses_pred)
+    show(im, poses, poses_pred, FLAGS.labels)
 
 
 if __name__ == '__main__':
@@ -107,8 +119,13 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--poses_pred',
-        type=str,
+        nargs="*",
         help='Poses Pred'
+    )
+    parser.add_argument(
+        '--labels',
+        nargs="*",
+        help='Labels/Legends to be used in the plot'
     )
     parser.add_argument(
         '--points',
