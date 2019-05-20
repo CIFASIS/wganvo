@@ -3,7 +3,7 @@ import numpy as np
 from scipy import linalg
 import argparse
 import sys, os, inspect
-
+import time
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
@@ -26,12 +26,18 @@ def test_model(model_name, data_dir, output_dir, batch_size):
     targets_placeholder = graph.get_tensor_by_name("targets_placeholder:0")
     images_placeholder = graph.get_tensor_by_name("images_placeholder:0")
     train_mode = graph.get_tensor_by_name("train_mode:0")  # FIXME Podria arrojar exception
+    start_loading_time = time.time()
     images, targets, _, groups, _ = read_data_sets(data_dir)
+    start_infer_time = time.time()
     dataset = DataSet(images, targets, groups, fake_data=False)
     relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size,
                                                                             images_placeholder,
                                                                             outputs,
                                                                             targets_placeholder, train_mode)
+    end_time = time.time()
+    print("Inference time: {}".format(end_time - start_infer_time))
+    print("Load Images + Inference Time: {}".format(end_time - start_loading_time))
+    print("Images in the seq: {}".format(relative_poses_prediction.shape[0]))
     frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset,
                                                        output_dir, save_txt=True, plot=True)
     points = np.array(zip(frames, abs_distance))
