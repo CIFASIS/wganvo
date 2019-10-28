@@ -1,0 +1,14 @@
+version: '2.3'
+services:
+  wganvo:
+    container_name: wganvo-docker
+    entrypoint: /bin/bash
+    stdin_open: true # Con estas dos lineas, al hacer docker-compose up -d (o make start) el container
+    tty: true        # queda corriendo, caso contrario, finalizaba de inmediato
+    build: .
+    runtime: nvidia
+    volumes:
+      - .:/app
+      - ./images-dir:/var/kitti
+#volumes:
+#  - /var
