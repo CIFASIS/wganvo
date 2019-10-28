@@ -115,3 +115,6 @@ nbproject/
 *.npz
 *.png
 *.txt
+
+# Directorio de trabajo
+/images-dir
