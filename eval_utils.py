@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import trajectory
-
+import time
 
 def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
                          targets_placeholder, train_mode=None):
@@ -16,9 +16,11 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
     num_examples = steps_per_epoch * batch_size
     relative_poses_prediction = np.empty((num_examples, 3, 4))
     relative_poses_target = np.empty((num_examples, 3, 4))
+    times = np.empty(num_examples)
     standardize_targets = False
     #        rmse, mse, norm_mse = do_evaluation(sess,outputs,images_placeholder, targets_placeholder, dataset, batch_size, True)
     for step in xrange(steps_per_epoch):
+        start_time = time.time()
         feed_dict = fill_feed_dict(dataset, images_placeholder, targets_placeholder, feed_with_batch=True,
                                    batch_size=batch_size, shuffle=False, standardize_targets=standardize_targets)
         if train_mode is not None:
@@ -30,13 +32,16 @@ def infer_relative_poses(sess, dataset, batch_size, images_placeholder, outputs,
         batch_relative_poses_target = get_transformation_matrices(dataset, batch_size,
                                                                   target_batch,
                                                                   standardize_targets)
+        end_time = time.time()
         init = batch_size * step
         end = batch_size * (step + 1)
+        assert end - init == 1
         relative_poses_prediction[init:end] = batch_relative_poses_pred
         relative_poses_target[init:end] = batch_relative_poses_target
+        times[step] = end_time - start_time
     if train_mode is not None:
         print("Train Mode: " + str(sess.run(train_mode, feed_dict)))
-    return relative_poses_prediction, relative_poses_target
+    return relative_poses_prediction, relative_poses_target, times
 
 
 def get_absolute_poses(relative_poses, inv=False):

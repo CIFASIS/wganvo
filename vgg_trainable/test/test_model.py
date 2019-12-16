@@ -30,7 +30,7 @@ def test_model(model_name, data_dir, output_dir, batch_size):
     images, targets, _, groups, _ = read_data_sets(data_dir)
     start_infer_time = time.time()
     dataset = DataSet(images, targets, groups, fake_data=False)
-    relative_poses_prediction, relative_poses_target = infer_relative_poses(sess, dataset, batch_size,
+    relative_poses_prediction, relative_poses_target, times = infer_relative_poses(sess, dataset, batch_size,
                                                                             images_placeholder,
                                                                             outputs,
                                                                             targets_placeholder, train_mode)
@@ -41,6 +41,8 @@ def test_model(model_name, data_dir, output_dir, batch_size):
     frames, abs_distance = plot_frames_vs_abs_distance(relative_poses_prediction, relative_poses_target, dataset,
                                                        output_dir, save_txt=True, plot=True)
     points = np.array(zip(frames, abs_distance))
+    print(times.shape)
+    np.savetxt(os.path.join(output_dir, "times.txt"), times)
     np.savetxt(os.path.join(output_dir, "frames_vs_abs_distance.txt"), points)
     np.savetxt(os.path.join(output_dir, "relative_poses_prediction.txt"), relative_poses_prediction.reshape(-1, 12),
                delimiter=' ')
