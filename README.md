@@ -1,6 +1,9 @@
 WGANVO
 =============================
 
+# Requirements
+NVIDIA GPU
+
 # Dependencies 
 ## Docker and docker-compose
 1. Install Docker and docker-compose
@@ -25,6 +28,10 @@ sudo make image
 sudo make start
 ```
 
+# KITTI
+## Image pre-processing
+In order to reduce the resolution of the images, we pre-process KITTI images using a Python script. 
+**This step will be optional in future versions.**
 
 <!--Para correr el test `vgg_trainable/test/test_model.py`, guardar las imágenes y el modelo en `images_dir` buscar donde se creo el volume, y en el shell del Docker, correr el test apuntando al volume. --> 
 
