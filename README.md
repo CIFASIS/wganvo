@@ -1,9 +1,14 @@
 WGANVO
 =============================
+Visual Odometry is one the most essential techniques for robot localization.
+In this work we propose the use of Generative Adversarial Networks to estimate the pose taking images of a monocular camera as input. We present WGANVO, a Deep Learning based monocular Visual Odometry method. In particular, a neural network is trained to regress a pose estimate from an image pair. The training is performed using a semi-supervised approach, combining the unsupervised GAN technique with labeled data. Unlike geometry based monocular methods, the proposed method can recover the absolute scale of the observed scene without neither prior knowledge nor extra information as it can infer it from the training stage. The evaluation of the resulting system is carried out on the well-known KITTI dataset where it is shown to work in real time and the accuracy obtained is encouraging to continue the development of Deep Learning based methods.
+
+### Demo
+* https://www.youtube.com/watch?v=zg5BlvUQhWE
 
 # Requirements
-NVIDIA GPU
-Python 2.7 and pip (image pre-processing)
+* NVIDIA GPU
+* Python 2.7 and pip (image pre-processing)
 
 # Dependencies
 ## Docker and docker-compose
@@ -52,7 +57,7 @@ Input must be provided in a specific folder structure. **This step will be optio
 
 For example, if we want to train the network with sequences 00, 01 and 03 as input, we pre-process the images with ```adapt_images_kitti``` and then we save the output files in this way:
 ```
-kitti/
+train/
 ├── 00
 │   ├── images.npz
 │   ├── t.npz
