@@ -1,1 +1,8 @@
 numpy
+scipy
+pillow
+imageio==2.5
+colour-science
+colour-demosaicing
+matplotlib
+opencv-python
