@@ -1,23 +1,41 @@
 # -*- coding: UTF8 -*-
-"""
-Provides functions for Lie group calculations.
-author: Michael Grupp
+#
+# This file is part of wganvo.
+# This file is based on a file from evo (github.com/MichaelGrupp/evo) (see original license below)
+#
+# Modifications copyright (C) 2019 Javier Cremona (CIFASIS-CONICET)
+# For more information see <https://github.com/CIFASIS/wganvo>
+#
+# wganvo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# wganvo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with wganvo. If not, see <http://www.gnu.org/licenses/>.
 
-This file is part of evo (github.com/MichaelGrupp/evo).
-
-evo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-evo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with evo.  If not, see <http://www.gnu.org/licenses/>.
-"""
+# Provides functions for Lie group calculations.
+# author: Michael Grupp
+#
+# This file is part of evo (github.com/MichaelGrupp/evo).
+#
+# evo is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# evo is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with evo.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import scipy.linalg as sl

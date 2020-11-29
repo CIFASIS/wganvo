@@ -1,0 +1,2 @@
+wganvo is released under a GPLv3 license (see License-gpl.txt).
+
