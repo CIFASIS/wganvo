@@ -1,3 +1,18 @@
+#
+# This file is part of wganvo.
+# This file is based on a file from https://github.com/ori-mrg/robotcar-dataset-sdk
+# (see original license below)
+#
+# Modifications copyright (C) 2019 Javier Cremona (CIFASIS-CONICET)
+# For more information see <https://github.com/CIFASIS/wganvo>
+#
+# This file is licensed under the Creative Commons
+# Attribution-NonCommercial-ShareAlike 4.0 International License.
+# To view a copy of this license, visit
+# http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to
+# Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+#
+
 ################################################################################
 #
 # Copyright (c) 2017 University of Oxford

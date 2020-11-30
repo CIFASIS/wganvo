@@ -10,6 +10,10 @@ In this work we propose the use of Generative Adversarial Networks to estimate t
 * https://www.youtube.com/watch?v=6vcR9PCsWDQ
 * https://www.youtube.com/watch?v=zg5BlvUQhWE
 
+# License 
+Our work is released under a [GPLv3 license](License-gpl.txt), except for some files.
+The scripts that are used to pre-process the images are released under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](License-CCBYNCSA4.txt) (see [LICENSE.txt](LICENSE.txt)). For a list of dependencies (and associated licenses), please see [Dependencies.md](Dependencies.md).
+
 # Requirements
 * NVIDIA GPU
 * Python 2.7 and pip (image pre-processing)

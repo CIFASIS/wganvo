@@ -1,2 +1,14 @@
-wganvo is released under a GPLv3 license (see License-gpl.txt).
+wganvo is released under a GPLv3 license (see License-gpl.txt), except for some files.
+The scripts that are used to pre-process the images are released under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (see License-CCBYNCSA4.txt).
+These scripts are:
+* adapt_images.py
+* adapt_images_kitti.py
+* build_pointcloud.py
+* camera_model.py
+* image.py
+* interpolate_poses.py
+* play_images.py
+* project_laser_into_camera.py
+* transform.py
 
+Please see Dependencies.md for a list of all the included code and library dependencies which are not property of the authors of wganvo.
