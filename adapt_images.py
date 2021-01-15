@@ -125,7 +125,7 @@ def main():
     #compressed_file_path = os.path.join(output_dir, folders[-3])
     result = list_to_array(result_list)
     save_txt(os.path.join(output_dir, 'images_shape'), result.shape, fmt='%i')
-    print result.shape
+    print(result.shape)
     compressed_file_path = os.path.join(output_dir, 'images')
     savez_compressed(compressed_file_path, result)
     savez_compressed(os.path.join(output_dir, 't'),transf)
