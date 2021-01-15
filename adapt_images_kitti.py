@@ -145,8 +145,8 @@ def main():
         assert left_img_name == right_img_name
 
         # X.shape -> 3xN
-        X = triangulate(left_img, right_img, left_calibration_matrix, right_calibration_matrix, N)
-        cloud_points[i] = X
+        # X = triangulate(left_img, right_img, left_calibration_matrix, right_calibration_matrix, N)
+        # cloud_points[i] = X
 
         original_resolution = adapt_images.get_resolution(left_img)
         assert isinstance(left_img, np.ndarray) and left_img.dtype == np.uint8 and left_img.flags.contiguous
@@ -156,7 +156,7 @@ def main():
         assert isinstance(modified_img,
                           np.ndarray) and modified_img.dtype == np.uint8  # and modified_img.flags.contiguous
         images_list.append(modified_img)
-    save_npy(os.path.join(output_dir, 'points'), cloud_points)
+    # save_npy(os.path.join(output_dir, 'points'), cloud_points)
     print(original_resolution)
     compressed_images = list_to_array(images_list)
     print compressed_images.shape
