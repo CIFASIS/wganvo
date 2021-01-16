@@ -1,8 +1,8 @@
-numpy
-scipy
+numpy==1.16.3
+scipy==1.1.0
 pillow
 imageio==2.5
 colour-science
 colour-demosaicing
 matplotlib
-opencv-python
+opencv-python==3.1.0.0
