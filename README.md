@@ -83,7 +83,41 @@ train_images/
     └── ...
 
 ```
-**Note**: Folder names are not required to be the same as the ones in this example.
+**Note**: Folder names (`train_images`, `00`, `01`, `03`) are not required to be the same as the ones in this example.
 
+Then, you must repeat this step in order to generate images to perform the adversarial training and to test the network. After that, copy everything into `images-dir` folder. This folder will be mounted as a volume in the Docker container. For example, you may ended up having this structure.
+```
+images-dir/
+├── train_images/
+│   ├── 00
+│   ├── 01
+│   └── 03
+├── train_gan_images/
+│   ├── 06
+│   ├── 07
+│   └── 08
+└── test_images/
+    └── 04
+```
+**Note**: Try to have at least 2 folders in `train_images`.
+
+A shell in the Docker container must be opened:
+```
+make shell
+```
+Alternatively, you can run `docker run -it --rm --runtime=nvidia -v $(pwd)/images-dir:/var/kitti wganvo_wganvo:latest` or `docker run -it --rm --gpus all -v $(pwd)/images-dir:/var/kitti wganvo_wganvo:latest` in newer versions of Docker. It may be different based on your machine’s operating system and the kind of NVIDIA GPU that your machine has. See [this link](https://towardsdatascience.com/how-to-properly-use-the-gpu-within-a-docker-container-4c699c78c6d1).
+
+The main script is `wgan/wgan_improved.py`. In the container's shell you can run this script to train the network. 
+```
+python wgan/wgan_improved.py /var/kitti/train_images /var/kitti/test_images /var/kitti/train_gan_images --batch_size <BATCH_SIZE>
+```
+The command `python wgan/wgan_improved.py -h` will display all the options that can be configured. It is important to set `--log_dir`.
+
+## Testing
+In order to test the resulting network, `vgg_trainable/test/test_model.py` can be used. Run:
+```
+python vgg_trainable/test/test_model.py <MODEL_NAME> /var/kitti/test_images/ --batch_size <BATCH_SIZE> 
+```
+where `<BATCH_SIZE>` is the batch size used to train the network and `<MODEL_NAME>` is the name of the model that was saved in the log directory (the path was set using `--log_dir`). The name of the model is the name of the file `<MODEL_NAME>.meta` (supply it to `test_model.py` without the `.meta` suffix).
 
 <!--Para correr el test `vgg_trainable/test/test_model.py`, guardar las imágenes y el modelo en `images_dir` buscar donde se creo el volume, y en el shell del Docker, correr el test apuntando al volume. -->
