@@ -849,7 +849,7 @@ def run(args):
             lib.save_images.save_pair_images(_x_r.reshape((args.batch_size, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH)),
                                              path, iteration, prefix='ground_truth')
 
-        kfold = 5
+        kfold = args.kfold
         train_images, train_targets, splits, _, train_points = read_data_sets(args.train_data_dir, kfold,
                                                                               load_points=load_points)
         test_images, test_targets, _, test_groups, _ = read_data_sets(args.test_data_dir)
@@ -1123,6 +1123,12 @@ if __name__ == '__main__':
         type=int,
         default=1000,
         help='Number of steps to run GAN trainer.'
+    )
+    parser.add_argument(
+        '--kfold',
+        type=int,
+        default=2,
+        help='Number of k-folds to split train data.'
     )
     parser.add_argument(
         '--max_vo_steps',
