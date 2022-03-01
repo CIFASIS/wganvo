@@ -4,7 +4,26 @@ Visual Odometry is one the most essential techniques for robot localization.
 In this work we propose the use of Generative Adversarial Networks to estimate the pose taking images of a monocular camera as input. We present WGANVO, a Deep Learning based monocular Visual Odometry method. In particular, a neural network is trained to regress a pose estimate from an image pair. The training is performed using a semi-supervised approach, combining the unsupervised GAN technique with labeled data. Unlike geometry based monocular methods, the proposed method can recover the absolute scale of the observed scene without neither prior knowledge nor extra information as it can infer it from the training stage. The evaluation of the resulting system is carried out on the well-known KITTI dataset where it is shown to work in real time and the accuracy obtained is encouraging to continue the development of Deep Learning based methods.
 
 ### Paper
+* **WGANVO: odometría visual monocular basada en redes adversarias generativas**, Javier Cremona, Lucas C. Uzal, Taihú Pire, Revista Iberoamericana de Automática e Informática industrial, [S.l.], dic. 2021. ISSN 1697-7920. Disponible en: [pdf](https://polipapers.upv.es/index.php/RIAI/article/view/16113). DOI: https://doi.org/10.4995/riai.2022.16113.
+
 * **WGANVO: Monocular Visual Odometry based on Generative Adversarial Networks**, Javier Cremona, Lucas C. Uzal, Taihú Pire, arXiv [pdf](https://arxiv.org/abs/2007.13704).
+
+### How to cite
+```
+@article{RIAI16113,
+	author = {Javier Alejandro Cremona and Lucas Uzal and Taihú Pire},
+	title = {WGANVO: odometría visual monocular basada en redes adversarias generativas},
+	journal = {Revista Iberoamericana de Automática e Informática industrial},
+	volume = {0},
+	number = {0},
+	year = {2021},
+	keywords = {Localización; Redes Neuronales; Robots Móviles},
+	abstract = {Los sistemas tradicionales de odometría visual (VO), directos o basados en características visuales, son susceptibles de cometer errores de correspondencia entre imágenes. Además, las configuraciones monoculares sólo son capaces de estimar la localización sujeto a un factor de escala, lo que hace imposible su uso inmediato en aplicaciones de robótica o realidad virtual. Recientemente, varios problemas de Visión por Computadora han sido abordados con éxito por algoritmos de Aprendizaje Profundo. En este trabajo presentamos un sistema de odometría visual monocular basado en Aprendizaje Profundo llamado WGANVO. Específicamente, entrenamos una red neuronal basada en GAN para regresionar una estimación de movimiento. El modelo resultante recibe un par de imágenes y estima el movimiento relativo entre ellas. Entrenamos la red neuronal utilizando un enfoque semi-supervisado. A diferencia de los sistemas monoculares tradicionales basados en geometría, nuestro método basado en Deep Learning es capaz de estimar la escala absoluta de la escena sin información extra ni conocimiento previo. Evaluamos WGANVO en el conocido conjunto de datos KITTI. Demostramos que nuestro sistema funciona en tiempo real y la precisión obtenida alienta a seguir desarrollando sistemas de localización basados en Aprendizaje Profundo.},
+	issn = {1697-7920},	
+	doi = {10.4995/riai.2022.16113},
+	url = {https://polipapers.upv.es/index.php/RIAI/article/view/16113}
+}
+```
 
 ### Demo
 * https://www.youtube.com/watch?v=6vcR9PCsWDQ
