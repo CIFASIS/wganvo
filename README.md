@@ -26,9 +26,8 @@ In this work we propose the use of Generative Adversarial Networks to estimate t
 ```
 
 ### Demo
-[![](https://markdown-videos.deta.dev/youtube/6vcR9PCsWDQ)](https://youtu.be/6vcR9PCsWDQ)
-
-[![](https://markdown-videos.deta.dev/youtube/zg5BlvUQhWE)](https://youtu.be/zg5BlvUQhWE)
+* https://www.youtube.com/watch?v=6vcR9PCsWDQ
+* https://www.youtube.com/watch?v=zg5BlvUQhWE
 
 # License 
 Our work is released under a [GPLv3 license](License-gpl.txt), except for some files.
