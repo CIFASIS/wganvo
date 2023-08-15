@@ -25,9 +25,15 @@ In this work we propose the use of Generative Adversarial Networks to estimate t
 }
 ```
 
-### Demo
-* https://www.youtube.com/watch?v=6vcR9PCsWDQ
-* https://www.youtube.com/watch?v=zg5BlvUQhWE
+## Video 1
+<a href="https://www.youtube.com/watch?v=6vcR9PCsWDQ" target="_blank">
+  <img src="https://user-images.githubusercontent.com/3181393/260768754-a8ea542e-b36c-4a4d-8021-5418262293fd.png" alt="Demo 1" width="700" />
+</a>
+
+## Video 2
+<a href="https://www.youtube.com/watch?v=zg5BlvUQhWE" target="_blank">
+  <img src="https://user-images.githubusercontent.com/3181393/260743282-d90481df-d0e9-48b7-865f-0d9e021ef2d1.png" alt="Demo 2" width="700" />
+</a>
 
 # License 
 Our work is released under a [GPLv3 license](License-gpl.txt), except for some files.
