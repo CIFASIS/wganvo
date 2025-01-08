@@ -10,12 +10,12 @@ In this work we propose the use of Generative Adversarial Networks to estimate t
 
 ### How to cite
 ```
-@article{RIAI16113,
+@article{cremona2021wganvo,
 	author = {Javier Alejandro Cremona and Lucas Uzal and Taihú Pire},
 	title = {WGANVO: odometría visual monocular basada en redes adversarias generativas},
 	journal = {Revista Iberoamericana de Automática e Informática industrial},
-	volume = {0},
-	number = {0},
+	volume = {19},
+	number = {2},
 	year = {2021},
 	keywords = {Localización; Redes Neuronales; Robots Móviles},
 	abstract = {Los sistemas tradicionales de odometría visual (VO), directos o basados en características visuales, son susceptibles de cometer errores de correspondencia entre imágenes. Además, las configuraciones monoculares sólo son capaces de estimar la localización sujeto a un factor de escala, lo que hace imposible su uso inmediato en aplicaciones de robótica o realidad virtual. Recientemente, varios problemas de Visión por Computadora han sido abordados con éxito por algoritmos de Aprendizaje Profundo. En este trabajo presentamos un sistema de odometría visual monocular basado en Aprendizaje Profundo llamado WGANVO. Específicamente, entrenamos una red neuronal basada en GAN para regresionar una estimación de movimiento. El modelo resultante recibe un par de imágenes y estima el movimiento relativo entre ellas. Entrenamos la red neuronal utilizando un enfoque semi-supervisado. A diferencia de los sistemas monoculares tradicionales basados en geometría, nuestro método basado en Deep Learning es capaz de estimar la escala absoluta de la escena sin información extra ni conocimiento previo. Evaluamos WGANVO en el conocido conjunto de datos KITTI. Demostramos que nuestro sistema funciona en tiempo real y la precisión obtenida alienta a seguir desarrollando sistemas de localización basados en Aprendizaje Profundo.},
